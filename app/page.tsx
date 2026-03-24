@@ -1,65 +1,123 @@
-import Image from "next/image";
+'use client'
+
+import { useState } from 'react'
+import { supabase } from '../lib/supabase'
+
+type LogType = 'meal' | 'symptom' | 'sleep' | 'stress' | null
 
 export default function Home() {
+  const [activeLog, setActiveLog] = useState<LogType>(null)
+  const [content, setContent] = useState('')
+  const [severity, setSeverity] = useState(3)
+  const [hours, setHours] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async () => {
+    setLoading(true)
+    const { error } = await supabase.from('logs').insert({
+      type: activeLog,
+      content: content || '',
+      severity: activeLog === 'symptom' || activeLog === 'stress' ? severity : null,
+      hours: activeLog === 'sleep' ? parseFloat(hours) : null,
+      user_id: 'anonymous'
+    })
+    setLoading(false)
+    if (!error) {
+      setSubmitted(true)
+      setContent('')
+      setSeverity(3)
+      setHours('')
+      setTimeout(() => { setSubmitted(false); setActiveLog(null) }, 2000)
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-[#f7f4ef] flex flex-col items-center px-4 py-12">
+      <h1 className="text-3xl font-bold text-[#2d6a4f] mb-2">GutBut Trigger Tool</h1>
+      <p className="text-gray-500 mb-10 text-center">Track your meals, symptoms, sleep and stress</p>
+
+      {!activeLog && !submitted && (
+        <div className="grid grid-cols-2 gap-4 w-full max-w-md">
+          {[
+            { type: 'meal', label: '🍽️ Log Meal', color: 'bg-green-100 border-green-300' },
+            { type: 'symptom', label: '🤢 Log Symptom', color: 'bg-red-100 border-red-300' },
+            { type: 'sleep', label: '😴 Log Sleep', color: 'bg-blue-100 border-blue-300' },
+            { type: 'stress', label: '😤 Log Stress', color: 'bg-yellow-100 border-yellow-300' },
+          ].map(({ type, label, color }) => (
+            <button
+              key={type}
+              onClick={() => setActiveLog(type as LogType)}
+              className={`${color} border-2 rounded-2xl p-6 text-left font-semibold text-gray-700 hover:scale-105 transition-transform`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              {label}
+            </button>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      )}
+
+      {activeLog && !submitted && (
+        <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-sm">
+          <button onClick={() => setActiveLog(null)} className="text-gray-400 mb-4 text-sm">← Back</button>
+          <h2 className="text-xl font-bold text-gray-700 mb-4 capitalize">Log {activeLog}</h2>
+
+          {(activeLog === 'meal' || activeLog === 'symptom') && (
+            <textarea
+              className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 mb-4 resize-none"
+              rows={3}
+              placeholder={activeLog === 'meal' ? 'What did you eat?' : 'What symptom are you feeling?'}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          )}
+
+          {activeLog === 'sleep' && (
+            <input
+              type="number"
+              className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 mb-4"
+              placeholder="How many hours did you sleep?"
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+            />
+          )}
+
+          {(activeLog === 'symptom' || activeLog === 'stress') && (
+            <div className="mb-4">
+              <label className="text-sm text-gray-500 mb-2 block">Severity: {severity}/5</label>
+              <input
+                type="range" min={1} max={5} value={severity}
+                onChange={(e) => setSeverity(parseInt(e.target.value))}
+                className="w-full"
+              />
+            </div>
+          )}
+
+          {activeLog === 'stress' && (
+            <textarea
+              className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 mb-4 resize-none"
+              rows={2}
+              placeholder="Optional note about your stress..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-[#2d6a4f] text-white rounded-xl py-3 font-semibold hover:bg-[#245a42] transition-colors"
           >
-            Documentation
-          </a>
+            {loading ? 'Saving...' : 'Submit'}
+          </button>
         </div>
-      </main>
-    </div>
-  );
+      )}
+
+      {submitted && (
+        <div className="text-center mt-10">
+          <p className="text-2xl">✅</p>
+          <p className="text-green-600 font-semibold mt-2">Logged. Keep it up.</p>
+        </div>
+      )}
+    </main>
+  )
 }
