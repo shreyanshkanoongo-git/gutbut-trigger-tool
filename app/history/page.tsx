@@ -318,21 +318,12 @@ export default function HistoryPage() {
           >
             <div
               style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                backgroundColor: '#edf5f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                fontSize: '2.5rem',
+                lineHeight: 1,
                 margin: '0 auto 20px',
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1e4d35" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="9" y1="13" x2="15" y2="13" />
-              </svg>
+              📋
             </div>
             <h3
               style={{
@@ -345,9 +336,29 @@ export default function HistoryPage() {
             >
               Nothing logged yet
             </h3>
-            <p style={{ color: '#9aada5', fontSize: '0.875rem', lineHeight: 1.7, margin: 0 }}>
-              Start by logging a meal or symptom.
+            <p style={{ color: '#9aada5', fontSize: '0.875rem', lineHeight: 1.7, margin: '0 0 28px' }}>
+              Start by logging a meal, symptom, sleep or stress. Your entries will appear here.
             </p>
+            <Link href="/log">
+              <button
+                style={{
+                  backgroundColor: '#1e4d35',
+                  color: '#f5f0e8',
+                  borderRadius: '14px',
+                  padding: '13px 28px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.02em',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#163b28' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#1e4d35' }}
+              >
+                Log Something
+              </button>
+            </Link>
           </div>
         )}
 

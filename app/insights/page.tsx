@@ -434,14 +434,14 @@ export default function InsightsPage() {
           </div>
         )}
 
-        {/* ── Insufficient Data ── */}
+        {/* ── Insufficient Data / Empty State ── */}
         {!loading && data?.insufficient && (
           <div
             className="w-full max-w-md fade-in-up"
             style={{
               backgroundColor: '#ffffff',
               borderRadius: '26px',
-              padding: '44px 32px',
+              padding: '48px 32px',
               border: '1px solid #e4ddd2',
               textAlign: 'center',
               boxShadow: '0 6px 30px rgba(30,77,53,0.06)',
@@ -449,38 +449,47 @@ export default function InsightsPage() {
           >
             <div
               style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                backgroundColor: '#edf5f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 22px',
+                fontSize: '2.5rem',
+                lineHeight: 1,
+                margin: '0 auto 20px',
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1e4d35" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
+              🌿
             </div>
             <h3
               style={{
                 fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
                 color: '#1e4d35',
-                fontSize: '1.3rem',
+                fontSize: '1.25rem',
                 fontWeight: 600,
-                margin: '0 0 12px',
+                margin: '0 0 10px',
               }}
             >
-              Not enough data yet
+              No insights yet
             </h3>
-            <p style={{ color: '#9aada5', fontSize: '0.875rem', lineHeight: 1.7, margin: 0 }}>
-              Keep logging for a few more days.
-              <br />
-              Patterns need time to take shape.
+            <p style={{ color: '#9aada5', fontSize: '0.875rem', lineHeight: 1.7, margin: '0 0 28px' }}>
+              Log at least 7 days of meals and symptoms to unlock your personal gut trigger report.
             </p>
+            <Link href="/log">
+              <button
+                style={{
+                  backgroundColor: '#1e4d35',
+                  color: '#f5f0e8',
+                  borderRadius: '14px',
+                  padding: '13px 28px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.02em',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#163b28' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#1e4d35' }}
+              >
+                Start Logging
+              </button>
+            </Link>
           </div>
         )}
 
