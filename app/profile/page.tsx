@@ -12,10 +12,13 @@ export default function ProfilePage() {
   const [initial, setInitial] = useState('?')
   const [loading, setLoading] = useState(true)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
+        setUserId(user.id)
         setEmail(user.email ?? '')
         setInitial((user.email?.[0] ?? '?').toUpperCase())
         setMemberSince(
@@ -29,6 +32,45 @@ export default function ProfilePage() {
       setLoading(false)
     })
   }, [])
+
+  async function handleExport() {
+    if (!userId) return
+    setExporting(true)
+    const { data, error } = await supabase
+      .from('logs')
+      .select('created_at, type, content, severity, hours')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error || !data) { setExporting(false); return }
+
+    const header = 'date,type,content,severity,hours'
+    const escape = (val: unknown) => {
+      if (val == null) return ''
+      const str = String(val)
+      return str.includes(',') || str.includes('"') || str.includes('\n')
+        ? `"${str.replace(/"/g, '""')}"`
+        : str
+    }
+    const rows = data.map((row) =>
+      [
+        new Date(row.created_at).toISOString().split('T')[0],
+        escape(row.type),
+        escape(row.content),
+        escape(row.severity),
+        escape(row.hours),
+      ].join(',')
+    )
+    const csv = [header, ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'gutbut-export.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+    setExporting(false)
+  }
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -48,6 +90,9 @@ export default function ProfilePage() {
         .nav-btn { transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
         .logout-btn { transition: background-color 0.2s ease, border-color 0.2s ease; }
         .logout-btn:not(:disabled):hover { background-color: #fff0ee !important; border-color: #fdd5cc !important; }
+        .export-btn { transition: background-color 0.2s ease, transform 0.15s ease; }
+        .export-btn:not(:disabled):hover { background-color: #163b28 !important; }
+        .export-btn:not(:disabled):active { transform: scale(0.98); }
       `}</style>
 
       <main
@@ -189,6 +234,29 @@ export default function ProfilePage() {
                 </p>
               </div>
             </div>
+
+            {/* Export */}
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="export-btn"
+              style={{
+                width: '100%',
+                backgroundColor: exporting ? '#8eb8a3' : '#1e4d35',
+                color: '#f5f0e8',
+                borderRadius: '14px',
+                padding: '15px',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                border: 'none',
+                cursor: exporting ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+                letterSpacing: '0.02em',
+                marginBottom: '12px',
+              }}
+            >
+              {exporting ? 'Exporting...' : 'Export My Data ↓'}
+            </button>
 
             {/* Logout */}
             <button
