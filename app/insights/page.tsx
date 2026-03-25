@@ -1,34 +1,127 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 
-interface Insight {
-  insight: string
+type DateRange = '7' | '14' | '30' | 'all'
+
+interface Summary {
+  totalLogs: number
+  daysTracked: number
+  topTrigger: string
 }
 
+interface Insight {
+  id: number
+  category: 'food' | 'sleep' | 'stress' | 'positive'
+  severity: 'high' | 'medium' | 'low'
+  text: string
+  count: number
+  percentage: number
+  recommendation: string
+}
+
+interface InsightsData {
+  summary: Summary
+  insights: Insight[]
+  insufficient?: boolean
+}
+
+const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: '7',   label: '7 Days' },
+  { value: '14',  label: '14 Days' },
+  { value: '30',  label: '30 Days' },
+  { value: 'all', label: 'All Time' },
+]
+
+const CATEGORY_META: Record<
+  Insight['category'],
+  { label: string; icon: React.ReactNode }
+> = {
+  food: {
+    label: 'Food Triggers',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+        <path d="M7 2v20" />
+        <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+      </svg>
+    ),
+  },
+  sleep: {
+    label: 'Sleep Impact',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+      </svg>
+    ),
+  },
+  stress: {
+    label: 'Stress Response',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      </svg>
+    ),
+  },
+  positive: {
+    label: 'Positive Patterns',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    ),
+  },
+}
+
+const SEVERITY_STYLES: Record<
+  Insight['severity'],
+  { label: string; bg: string; color: string }
+> = {
+  high:   { label: 'HIGH',   bg: '#fff0ee', color: '#c0392b' },
+  medium: { label: 'MEDIUM', bg: '#fffbec', color: '#b07d00' },
+  low:    { label: 'LOW',    bg: '#edf5f0', color: '#1e4d35' },
+}
+
+// Order categories for consistent display
+const CATEGORY_ORDER: Insight['category'][] = ['food', 'sleep', 'stress', 'positive']
+
 export default function InsightsPage() {
-  const [insights, setInsights] = useState<Insight[]>([])
+  const [dateRange, setDateRange] = useState<DateRange>('7')
+  const [data, setData] = useState<InsightsData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [insufficient, setInsufficient] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetch('/api/insights')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.insufficient) {
-          setInsufficient(true)
-        } else {
-          setInsights(data.insights)
-        }
-        setLoading(false)
-      })
-      .catch(() => {
-        setError('Something went wrong. Please try again.')
-        setLoading(false)
-      })
+  const fetchInsights = useCallback(async (range: DateRange) => {
+    setLoading(true)
+    setError('')
+    setData(null)
+    try {
+      const res = await fetch(`/api/insights?dateRange=${range}`)
+      const json = await res.json()
+      if (json.error) throw new Error(json.error)
+      setData(json)
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchInsights(dateRange)
+  }, [dateRange, fetchInsights])
+
+  // Group insights by category, preserving defined order
+  const grouped = data?.insights
+    ? CATEGORY_ORDER.reduce<Record<string, Insight[]>>((acc, cat) => {
+        const items = data.insights.filter((i) => i.category === cat)
+        if (items.length) acc[cat] = items
+        return acc
+      }, {})
+    : {}
+
+  const totalPatterns = data?.insights?.length ?? 0
 
   return (
     <>
@@ -42,7 +135,7 @@ export default function InsightsPage() {
           50%       { opacity: 1;    transform: scale(1); }
         }
         @keyframes cardIn {
-          from { opacity: 0; transform: translateY(14px); }
+          from { opacity: 0; transform: translateY(12px); }
           to   { opacity: 1; transform: translateY(0); }
         }
 
@@ -60,7 +153,13 @@ export default function InsightsPage() {
           animation: cardIn 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
         }
 
-        .back-btn { transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease; }
+        .range-btn {
+          transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        }
+
+        .back-btn {
+          transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
       `}</style>
 
       <main
@@ -68,7 +167,7 @@ export default function InsightsPage() {
         style={{ backgroundColor: '#f5f0e8', fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)" }}
       >
         {/* ── Header ── */}
-        <div className="w-full max-w-md mb-12 fade-in-up">
+        <div className="w-full max-w-md mb-8 fade-in-up">
           <div className="flex items-start justify-between">
             <div>
               <h1
@@ -130,6 +229,88 @@ export default function InsightsPage() {
           <div style={{ width: '100%', height: '1px', backgroundColor: '#d6cfc4', marginTop: '24px' }} />
         </div>
 
+        {/* ── Date Range Filter ── */}
+        <div className="w-full max-w-md mb-8 fade-in-up" style={{ animationDelay: '0.05s' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {DATE_RANGE_OPTIONS.map(({ value, label }) => {
+              const active = dateRange === value
+              return (
+                <button
+                  key={value}
+                  onClick={() => setDateRange(value)}
+                  className="range-btn"
+                  style={{
+                    flex: 1,
+                    padding: '9px 0',
+                    borderRadius: '100px',
+                    border: active ? '1px solid #1e4d35' : '1px solid #d0c9bf',
+                    backgroundColor: active ? '#1e4d35' : 'transparent',
+                    color: active ? '#f5f0e8' : '#7a9185',
+                    fontSize: '0.8rem',
+                    fontWeight: active ? 600 : 400,
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* ── Summary Bar ── */}
+        {!loading && data && !data.insufficient && data.summary && (
+          <div
+            className="w-full max-w-md mb-8 fade-in-up"
+            style={{ animationDelay: '0.1s' }}
+          >
+            <div
+              style={{
+                backgroundColor: '#1e4d35',
+                borderRadius: '20px',
+                padding: '22px 24px',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr 1fr',
+                gap: '8px',
+              }}
+            >
+              {[
+                { value: data.summary.totalLogs, label: 'logs analysed' },
+                { value: data.summary.daysTracked, label: 'days tracked' },
+                { value: data.summary.topTrigger, label: 'top trigger' },
+              ].map(({ value, label }) => (
+                <div key={label} style={{ textAlign: 'center' }}>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                      color: '#f5f0e8',
+                      fontSize: typeof value === 'number' ? '1.625rem' : '0.9rem',
+                      fontWeight: 600,
+                      lineHeight: 1.2,
+                      marginBottom: '4px',
+                    }}
+                  >
+                    {value}
+                  </div>
+                  <div
+                    style={{
+                      color: '#8eb8a3',
+                      fontSize: '0.6875rem',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      fontWeight: 400,
+                    }}
+                  >
+                    {label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Loading ── */}
         {loading && (
           <div
@@ -138,7 +319,7 @@ export default function InsightsPage() {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '22px',
-              marginTop: '72px',
+              marginTop: '64px',
             }}
           >
             <div style={{ display: 'flex', gap: '9px' }}>
@@ -157,7 +338,7 @@ export default function InsightsPage() {
         )}
 
         {/* ── Insufficient Data ── */}
-        {insufficient && !loading && (
+        {!loading && data?.insufficient && (
           <div
             className="w-full max-w-md fade-in-up"
             style={{
@@ -181,16 +362,7 @@ export default function InsightsPage() {
                 margin: '0 auto 22px',
               }}
             >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#1e4d35"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1e4d35" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -216,7 +388,7 @@ export default function InsightsPage() {
         )}
 
         {/* ── Error ── */}
-        {error && !loading && (
+        {!loading && error && (
           <div
             className="w-full max-w-md fade-in-up"
             style={{
@@ -232,8 +404,8 @@ export default function InsightsPage() {
         )}
 
         {/* ── Insight Cards ── */}
-        {!loading && !insufficient && insights.length > 0 && (
-          <div className="w-full max-w-md" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {!loading && !error && data && !data.insufficient && totalPatterns > 0 && (
+          <div className="w-full max-w-md">
             <p
               style={{
                 color: '#1e4d35',
@@ -241,55 +413,115 @@ export default function InsightsPage() {
                 letterSpacing: '0.16em',
                 textTransform: 'uppercase',
                 fontWeight: 600,
-                marginBottom: '6px',
+                marginBottom: '20px',
               }}
             >
-              {insights.length} pattern{insights.length !== 1 ? 's' : ''} found
+              {totalPatterns} pattern{totalPatterns !== 1 ? 's' : ''} found
             </p>
-            {insights.map((item, index) => (
-              <div
-                key={index}
-                className="insight-card"
-                style={{
-                  animationDelay: `${index * 0.07}s`,
-                  backgroundColor: '#ffffff',
-                  borderRadius: '22px',
-                  padding: '24px 26px',
-                  border: '1px solid #e4ddd2',
-                  display: 'flex',
-                  gap: '18px',
-                  alignItems: 'flex-start',
-                  boxShadow: '0 2px 12px rgba(30,77,53,0.04)',
-                }}
-              >
-                <div
-                  style={{
-                    minWidth: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
-                    backgroundColor: '#edf5f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginTop: '1px',
-                  }}
-                >
-                  <span style={{ color: '#1e4d35', fontSize: '0.7rem', fontWeight: 700 }}>{index + 1}</span>
-                </div>
-                <p
-                  style={{
-                    color: '#2c3e30',
-                    fontSize: '0.9375rem',
-                    lineHeight: 1.68,
-                    margin: 0,
-                    fontWeight: 400,
-                  }}
-                >
-                  {item.insight}
-                </p>
-              </div>
-            ))}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              {(Object.keys(grouped) as Insight['category'][]).map((cat) => {
+                const meta = CATEGORY_META[cat]
+                const items = grouped[cat]
+                return (
+                  <div key={cat}>
+                    {/* Category header */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '12px',
+                        color: '#1e4d35',
+                      }}
+                    >
+                      <div
+                        style={{
+                          backgroundColor: '#edf5f0',
+                          borderRadius: '8px',
+                          padding: '6px',
+                          display: 'flex',
+                        }}
+                      >
+                        {meta.icon}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.1em',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {meta.label}
+                      </span>
+                    </div>
+
+                    {/* Cards */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {items.map((item, idx) => {
+                        const sev = SEVERITY_STYLES[item.severity]
+                        return (
+                          <div
+                            key={item.id}
+                            className="insight-card"
+                            style={{
+                              animationDelay: `${idx * 0.07}s`,
+                              backgroundColor: '#ffffff',
+                              borderRadius: '20px',
+                              padding: '22px 22px 20px',
+                              border: '1px solid #e4ddd2',
+                              boxShadow: '0 2px 12px rgba(30,77,53,0.04)',
+                              position: 'relative',
+                            }}
+                          >
+                            {/* Severity badge */}
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: '18px',
+                                right: '18px',
+                                backgroundColor: sev.bg,
+                                color: sev.color,
+                                fontSize: '0.6rem',
+                                fontWeight: 700,
+                                letterSpacing: '0.1em',
+                                padding: '3px 9px',
+                                borderRadius: '100px',
+                              }}
+                            >
+                              {sev.label}
+                            </div>
+
+                            {/* Insight text */}
+                            <p
+                              style={{
+                                color: '#2c3e30',
+                                fontSize: '0.9375rem',
+                                lineHeight: 1.68,
+                                margin: '0 0 16px',
+                                paddingRight: '56px',
+                              }}
+                            >
+                              {item.text}
+                            </p>
+
+                            {/* Divider */}
+                            <div style={{ height: '1px', backgroundColor: '#f0ebe3', marginBottom: '14px' }} />
+
+                            {/* Recommendation */}
+                            <p style={{ margin: 0, fontSize: '0.8375rem', lineHeight: 1.6, color: '#7a9185' }}>
+                              <span style={{ fontWeight: 600, color: '#5a7a6a' }}>Recommendation: </span>
+                              {item.recommendation}
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
       </main>
