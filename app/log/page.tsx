@@ -184,35 +184,34 @@ export default function Home() {
       >
         {/* ── Header ── */}
         <div className="w-full max-w-md mb-12 fade-in-up">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1
-                style={{
-                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                  color: '#1e4d35',
-                  fontSize: '2.25rem',
-                  fontWeight: 600,
-                  letterSpacing: '-0.01em',
-                  lineHeight: 1.15,
-                  margin: 0,
-                }}
-              >
-                GutBut
-              </h1>
-              <p
-                style={{
-                  color: '#7a9185',
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  marginTop: '5px',
-                  fontWeight: 400,
-                }}
-              >
-                Gut Health Tracker
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <h1
+              style={{
+                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                color: '#1e4d35',
+                fontSize: '2.25rem',
+                fontWeight: 600,
+                letterSpacing: '-0.01em',
+                lineHeight: 1.15,
+                margin: 0,
+              }}
+            >
+              GutBut
+            </h1>
+            <p
+              style={{
+                color: '#7a9185',
+                fontSize: '0.75rem',
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                marginTop: '5px',
+                marginBottom: '20px',
+                fontWeight: 400,
+              }}
+            >
+              Gut Health Tracker
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
               <Link href="/history">
                 <button
                   className="back-btn"
@@ -242,25 +241,62 @@ export default function Home() {
                   History
                 </button>
               </Link>
-              <Link href="/insights">
+              <Link href="/experiments">
                 <button
+                  className="back-btn"
                   style={{
-                    backgroundColor: '#1e4d35',
-                    color: '#f5f0e8',
+                    backgroundColor: 'transparent',
+                    color: '#1e4d35',
                     fontSize: '0.8125rem',
                     letterSpacing: '0.04em',
                     padding: '10px 22px',
                     borderRadius: '100px',
-                    border: 'none',
+                    border: '1px solid #c8bfb0',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     fontWeight: 500,
-                    transition: 'opacity 0.2s ease',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.82')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#1e4d35'
+                    e.currentTarget.style.color = '#f5f0e8'
+                    e.currentTarget.style.borderColor = '#1e4d35'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.color = '#1e4d35'
+                    e.currentTarget.style.borderColor = '#c8bfb0'
+                  }}
                 >
-                  Insights →
+                  Experiments
+                </button>
+              </Link>
+              <Link href="/insights">
+                <button
+                  className="back-btn"
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#1e4d35',
+                    fontSize: '0.8125rem',
+                    letterSpacing: '0.04em',
+                    padding: '10px 22px',
+                    borderRadius: '100px',
+                    border: '1px solid #c8bfb0',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontWeight: 500,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#1e4d35'
+                    e.currentTarget.style.color = '#f5f0e8'
+                    e.currentTarget.style.borderColor = '#1e4d35'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.color = '#1e4d35'
+                    e.currentTarget.style.borderColor = '#c8bfb0'
+                  }}
+                >
+                  Insights
                 </button>
               </Link>
             </div>
