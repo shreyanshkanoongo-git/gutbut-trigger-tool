@@ -196,7 +196,7 @@ export default function InsightsPage() {
                 Your patterns
               </p>
             </div>
-            <Link href="/">
+            <Link href="/log">
               <button
                 className="back-btn"
                 style={{

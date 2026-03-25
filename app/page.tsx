@@ -1,514 +1,491 @@
-'use client'
-
-import { useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '../lib/supabase'
 
-type LogType = 'meal' | 'symptom' | 'sleep' | 'stress'
-
-const LOG_TYPES = [
-  {
-    type: 'meal' as LogType,
-    label: 'Meal',
-    subtitle: 'What you ate',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
-        <path d="M7 2v20" />
-        <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-      </svg>
-    ),
-  },
-  {
-    type: 'symptom' as LogType,
-    label: 'Symptom',
-    subtitle: 'How you feel',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-      </svg>
-    ),
-  },
-  {
-    type: 'sleep' as LogType,
-    label: 'Sleep',
-    subtitle: 'Rest quality',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-      </svg>
-    ),
-  },
-  {
-    type: 'stress' as LogType,
-    label: 'Stress',
-    subtitle: 'Mental load',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M8 15s1.5-2 4-2 4 2 4 2" />
-        <line x1="9" y1="9" x2="9.01" y2="9" />
-        <line x1="15" y1="9" x2="15.01" y2="9" />
-      </svg>
-    ),
-  },
-]
-
-export default function Home() {
-  const [activeLog, setActiveLog] = useState<LogType | null>(null)
-  const [content, setContent] = useState('')
-  const [severity, setSeverity] = useState(3)
-  const [hours, setHours] = useState('')
-  const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  const handleSubmit = async () => {
-    setLoading(true)
-    const { error } = await supabase.from('logs').insert({
-      type: activeLog,
-      content: content || '',
-      severity: activeLog === 'symptom' || activeLog === 'stress' ? severity : null,
-      hours: activeLog === 'sleep' ? parseFloat(hours) : null,
-      user_id: 'anonymous',
-    })
-    setLoading(false)
-    if (!error) {
-      setSubmitted(true)
-      setContent('')
-      setSeverity(3)
-      setHours('')
-      setTimeout(() => {
-        setSubmitted(false)
-        setActiveLog(null)
-      }, 2500)
-    }
-  }
-
-  const activeLogData = LOG_TYPES.find((l) => l.type === activeLog)
-
+export default function LandingPage() {
   return (
     <>
       <style>{`
         @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(18px); }
+          from { opacity: 0; transform: translateY(24px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.96); }
-          to   { opacity: 1; transform: scale(1); }
-        }
-        @keyframes checkPop {
-          0%   { opacity: 0; transform: scale(0.4); }
-          70%  { transform: scale(1.12); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        .fade-in-up  { animation: fadeInUp 0.45s cubic-bezier(0.22,1,0.36,1) both; }
-        .scale-in    { animation: scaleIn  0.35s cubic-bezier(0.22,1,0.36,1) both; }
-        .check-pop   { animation: checkPop 0.55s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.22,1,0.36,1) both; }
+        .fade-in-up-2 { animation: fadeInUp 0.6s cubic-bezier(0.22,1,0.36,1) 0.12s both; }
+        .fade-in-up-3 { animation: fadeInUp 0.6s cubic-bezier(0.22,1,0.36,1) 0.24s both; }
+        .fade-in-up-4 { animation: fadeInUp 0.6s cubic-bezier(0.22,1,0.36,1) 0.36s both; }
 
-        .log-card {
-          transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
-        }
-        .log-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 16px 40px rgba(30,77,53,0.10);
-          border-color: #b8d4c4 !important;
-        }
-        .log-card:active { transform: translateY(-1px); }
-
-        textarea, input[type="number"] {
-          outline: none;
-          transition: border-color 0.2s ease, background-color 0.2s ease;
-        }
-        textarea:focus, input[type="number"]:focus {
-          border-color: #1e4d35 !important;
-          background-color: #ffffff !important;
-        }
-
-        input[type="range"] {
-          -webkit-appearance: none;
-          appearance: none;
-          background: transparent;
+        .cta-btn {
+          display: inline-block;
+          background-color: #1e4d35;
+          color: #f5f0e8;
+          font-size: 1rem;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          padding: 16px 40px;
+          border-radius: 100px;
+          border: none;
           cursor: pointer;
-          width: 100%;
-        }
-        input[type="range"]::-webkit-slider-runnable-track {
-          background: #d4e8dc;
-          height: 4px;
-          border-radius: 2px;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          background: #1e4d35;
-          margin-top: -9px;
-          box-shadow: 0 2px 8px rgba(30,77,53,0.28);
-          transition: transform 0.15s ease;
-        }
-        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
-
-        .submit-btn {
+          text-decoration: none;
           transition: background-color 0.2s ease, transform 0.15s ease;
         }
-        .submit-btn:not(:disabled):hover  { background-color: #163b28 !important; }
-        .submit-btn:not(:disabled):active { transform: scale(0.98); }
+        .cta-btn:hover {
+          background-color: #163b28;
+          transform: translateY(-2px);
+        }
+        .cta-btn:active { transform: translateY(0); }
 
-        .back-btn { transition: color 0.15s ease; }
-        .back-btn:hover { color: #1e4d35 !important; }
+        .step-icon {
+          width: 52px;
+          height: 52px;
+          border-radius: 16px;
+          background-color: #edf5f0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #1e4d35;
+          flex-shrink: 0;
+        }
+
+        .discover-card {
+          background-color: #ffffff;
+          border: 1px solid #e4ddd2;
+          border-radius: 24px;
+          padding: 28px 26px;
+          flex: 1;
+          min-width: 0;
+          transition: transform 0.22s ease, box-shadow 0.22s ease;
+        }
+        .discover-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 16px 40px rgba(30,77,53,0.09);
+        }
+
+        .section-label {
+          font-size: 0.7rem;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          font-weight: 600;
+          color: #7a9185;
+          margin-bottom: 14px;
+        }
+
+        @media (max-width: 640px) {
+          .steps-row { flex-direction: column !important; }
+          .discover-row { flex-direction: column !important; }
+          .hero-heading { font-size: 2.5rem !important; }
+        }
       `}</style>
 
       <main
-        className="min-h-screen flex flex-col items-center px-5 pt-14 pb-20"
-        style={{ backgroundColor: '#f5f0e8', fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)" }}
+        style={{
+          backgroundColor: '#f5f0e8',
+          fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+          minHeight: '100vh',
+        }}
       >
-        {/* ── Header ── */}
-        <div className="w-full max-w-md mb-12 fade-in-up">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1
-                style={{
-                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                  color: '#1e4d35',
-                  fontSize: '2.25rem',
-                  fontWeight: 600,
-                  letterSpacing: '-0.01em',
-                  lineHeight: 1.15,
-                  margin: 0,
-                }}
-              >
-                GutBut
-              </h1>
-              <p
-                style={{
-                  color: '#7a9185',
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  marginTop: '5px',
-                  fontWeight: 400,
-                }}
-              >
-                Gut Health Tracker
-              </p>
-            </div>
-            <Link href="/insights">
-              <button
-                style={{
-                  backgroundColor: '#1e4d35',
-                  color: '#f5f0e8',
-                  fontSize: '0.8125rem',
-                  letterSpacing: '0.04em',
-                  padding: '10px 22px',
-                  borderRadius: '100px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  fontWeight: 500,
-                  transition: 'opacity 0.2s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.82')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-              >
-                Insights →
-              </button>
-            </Link>
-          </div>
-          <div style={{ width: '100%', height: '1px', backgroundColor: '#d6cfc4', marginTop: '24px' }} />
-        </div>
-
-        {/* ── Log Type Grid ── */}
-        {!activeLog && !submitted && (
-          <div className="w-full max-w-md fade-in-up">
-            <p
-              style={{
-                color: '#1e4d35',
-                fontSize: '0.7rem',
-                letterSpacing: '0.16em',
-                textTransform: 'uppercase',
-                fontWeight: 600,
-                marginBottom: '18px',
-              }}
-            >
-              What would you like to log?
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              {LOG_TYPES.map(({ type, label, subtitle, icon }) => (
-                <button
-                  key={type}
-                  onClick={() => setActiveLog(type)}
-                  className="log-card"
-                  style={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e4ddd2',
-                    borderRadius: '22px',
-                    padding: '26px 20px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  <div style={{ color: '#1e4d35', marginBottom: '16px' }}>{icon}</div>
-                  <div style={{ color: '#1e4d35', fontSize: '1rem', fontWeight: 600, marginBottom: '4px' }}>
-                    {label}
-                  </div>
-                  <div style={{ color: '#9aada5', fontSize: '0.75rem', fontWeight: 400 }}>{subtitle}</div>
-                </button>
-              ))}
-            </div>
-
-            <p
-              style={{
-                color: '#b8b0a4',
-                fontSize: '0.75rem',
-                letterSpacing: '0.05em',
-                textAlign: 'center',
-                marginTop: '36px',
-              }}
-            >
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </p>
-          </div>
-        )}
-
-        {/* ── Log Form ── */}
-        {activeLog && !submitted && (
-          <div className="w-full max-w-md scale-in">
-            <button
-              onClick={() => setActiveLog(null)}
-              className="back-btn"
-              style={{
-                color: '#9aada5',
-                fontSize: '0.8125rem',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                padding: 0,
-                marginBottom: '28px',
-              }}
-            >
-              ← Back
-            </button>
-
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '26px',
-                padding: '32px',
-                border: '1px solid #e4ddd2',
-                boxShadow: '0 6px 30px rgba(30,77,53,0.07)',
-              }}
-            >
-              {/* Form header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '30px' }}>
-                <div
-                  style={{
-                    color: '#1e4d35',
-                    backgroundColor: '#edf5f0',
-                    borderRadius: '14px',
-                    padding: '11px',
-                    display: 'flex',
-                    flexShrink: 0,
-                  }}
-                >
-                  {activeLogData?.icon}
-                </div>
-                <div>
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                      color: '#1e4d35',
-                      fontSize: '1.375rem',
-                      fontWeight: 600,
-                      margin: 0,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    Log {activeLog.charAt(0).toUpperCase() + activeLog.slice(1)}
-                  </h2>
-                  <p style={{ color: '#9aada5', fontSize: '0.8rem', margin: '3px 0 0' }}>
-                    {activeLogData?.subtitle}
-                  </p>
-                </div>
-              </div>
-
-              {/* Meal / Symptom textarea */}
-              {(activeLog === 'meal' || activeLog === 'symptom') && (
-                <textarea
-                  style={{
-                    width: '100%',
-                    border: '1px solid #e4ddd2',
-                    borderRadius: '14px',
-                    padding: '14px 16px',
-                    fontSize: '0.9rem',
-                    marginBottom: '20px',
-                    fontFamily: 'inherit',
-                    color: '#1e4d35',
-                    backgroundColor: '#faf8f4',
-                    resize: 'none',
-                    boxSizing: 'border-box',
-                    lineHeight: 1.65,
-                    display: 'block',
-                  }}
-                  rows={3}
-                  placeholder={activeLog === 'meal' ? 'Describe what you ate...' : "Describe what you're feeling..."}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              )}
-
-              {/* Sleep input */}
-              {activeLog === 'sleep' && (
-                <input
-                  type="number"
-                  style={{
-                    width: '100%',
-                    border: '1px solid #e4ddd2',
-                    borderRadius: '14px',
-                    padding: '14px 16px',
-                    fontSize: '0.9rem',
-                    marginBottom: '20px',
-                    fontFamily: 'inherit',
-                    color: '#1e4d35',
-                    backgroundColor: '#faf8f4',
-                    boxSizing: 'border-box',
-                    display: 'block',
-                  }}
-                  placeholder="Hours of sleep"
-                  value={hours}
-                  onChange={(e) => setHours(e.target.value)}
-                />
-              )}
-
-              {/* Severity slider */}
-              {(activeLog === 'symptom' || activeLog === 'stress') && (
-                <div style={{ marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <label style={{ color: '#7a9185', fontSize: '0.8125rem', fontWeight: 500 }}>Severity</label>
-                    <span
-                      style={{
-                        color: '#1e4d35',
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        backgroundColor: '#edf5f0',
-                        padding: '3px 12px',
-                        borderRadius: '100px',
-                      }}
-                    >
-                      {severity} / 5
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={5}
-                    value={severity}
-                    onChange={(e) => setSeverity(parseInt(e.target.value))}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                    <span style={{ color: '#c0c8c4', fontSize: '0.7rem' }}>Mild</span>
-                    <span style={{ color: '#c0c8c4', fontSize: '0.7rem' }}>Severe</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Stress note textarea */}
-              {activeLog === 'stress' && (
-                <textarea
-                  style={{
-                    width: '100%',
-                    border: '1px solid #e4ddd2',
-                    borderRadius: '14px',
-                    padding: '14px 16px',
-                    fontSize: '0.9rem',
-                    marginBottom: '20px',
-                    fontFamily: 'inherit',
-                    color: '#1e4d35',
-                    backgroundColor: '#faf8f4',
-                    resize: 'none',
-                    boxSizing: 'border-box',
-                    lineHeight: 1.65,
-                    display: 'block',
-                  }}
-                  rows={2}
-                  placeholder="Add a note about your stress (optional)"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              )}
-
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="submit-btn"
-                style={{
-                  width: '100%',
-                  backgroundColor: loading ? '#8eb8a3' : '#1e4d35',
-                  color: '#f5f0e8',
-                  borderRadius: '14px',
-                  padding: '15px',
-                  fontSize: '0.9375rem',
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  fontFamily: 'inherit',
-                  letterSpacing: '0.02em',
-                }}
-              >
-                {loading ? 'Saving...' : 'Save Entry'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Success State ── */}
-        {submitted && (
-          <div className="fade-in-up" style={{ textAlign: 'center', marginTop: '60px' }}>
-            <div
-              className="check-pop"
-              style={{
-                width: '76px',
-                height: '76px',
-                borderRadius: '50%',
-                backgroundColor: '#edf5f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 24px',
-                boxShadow: '0 8px 28px rgba(30,77,53,0.12)',
-              }}
-            >
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#1e4d35"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            <h3
+        {/* ── Hero ── */}
+        <section
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            padding: '100px 24px 90px',
+          }}
+        >
+          {/* Wordmark */}
+          <div className="fade-in-up" style={{ marginBottom: '52px' }}>
+            <span
               style={{
                 fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
                 color: '#1e4d35',
-                fontSize: '1.4rem',
+                fontSize: '1.125rem',
                 fontWeight: 600,
-                margin: '0 0 10px',
+                letterSpacing: '0.02em',
               }}
             >
-              Entry saved
-            </h3>
-            <p style={{ color: '#9aada5', fontSize: '0.875rem', lineHeight: 1.6 }}>
-              Keep tracking. Patterns take shape over time.
-            </p>
+              GutBut
+            </span>
           </div>
-        )}
+
+          <h1
+            className="hero-heading fade-in-up-2"
+            style={{
+              fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+              color: '#1e4d35',
+              fontSize: '3.5rem',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
+              maxWidth: '680px',
+              margin: '0 0 24px',
+            }}
+          >
+            Discover What&apos;s Hurting Your Gut
+          </h1>
+
+          <p
+            className="fade-in-up-3"
+            style={{
+              color: '#5a7a6a',
+              fontSize: '1.0625rem',
+              lineHeight: 1.7,
+              maxWidth: '500px',
+              margin: '0 0 44px',
+              fontWeight: 400,
+            }}
+          >
+            Log your meals, symptoms, sleep and stress. Get AI-powered insights that tell you exactly what&apos;s triggering your gut issues — in plain language.
+          </p>
+
+          <div className="fade-in-up-4">
+            <Link href="/log" className="cta-btn">
+              Start Tracking →
+            </Link>
+          </div>
+        </section>
+
+        {/* ── Divider ── */}
+        <div style={{ maxWidth: '720px', margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ height: '1px', backgroundColor: '#d6cfc4' }} />
+        </div>
+
+        {/* ── How It Works ── */}
+        <section style={{ padding: '80px 24px', maxWidth: '720px', margin: '0 auto' }}>
+          <p className="section-label" style={{ textAlign: 'center' }}>How It Works</p>
+          <h2
+            style={{
+              fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+              color: '#1e4d35',
+              fontSize: '2rem',
+              fontWeight: 600,
+              letterSpacing: '-0.015em',
+              textAlign: 'center',
+              margin: '0 0 52px',
+            }}
+          >
+            Three simple steps
+          </h2>
+
+          <div
+            className="steps-row"
+            style={{ display: 'flex', gap: '32px', alignItems: 'flex-start' }}
+          >
+            {/* Step 1 */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <div className="step-icon" style={{ marginBottom: '20px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+                  <path d="M7 2v20" />
+                  <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+                </svg>
+              </div>
+              <div
+                style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: '#9aada5',
+                  marginBottom: '10px',
+                }}
+              >
+                Step 1
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35',
+                  fontSize: '1.1875rem',
+                  fontWeight: 600,
+                  margin: '0 0 10px',
+                }}
+              >
+                Log Daily
+              </h3>
+              <p style={{ color: '#7a9185', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>
+                Track meals, symptoms, sleep and stress in seconds
+              </p>
+            </div>
+
+            {/* Connector */}
+            <div
+              style={{
+                marginTop: '26px',
+                color: '#c8bfb0',
+                fontSize: '1.25rem',
+                flexShrink: 0,
+              }}
+              aria-hidden
+            >
+              →
+            </div>
+
+            {/* Step 2 */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <div className="step-icon" style={{ marginBottom: '20px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16z" />
+                  <path d="M12 6v6l4 2" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <div
+                style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: '#9aada5',
+                  marginBottom: '10px',
+                }}
+              >
+                Step 2
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35',
+                  fontSize: '1.1875rem',
+                  fontWeight: 600,
+                  margin: '0 0 10px',
+                }}
+              >
+                Find Patterns
+              </h3>
+              <p style={{ color: '#7a9185', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>
+                AI analyses your data and connects the dots
+              </p>
+            </div>
+
+            {/* Connector */}
+            <div
+              style={{
+                marginTop: '26px',
+                color: '#c8bfb0',
+                fontSize: '1.25rem',
+                flexShrink: 0,
+              }}
+              aria-hidden
+            >
+              →
+            </div>
+
+            {/* Step 3 */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <div className="step-icon" style={{ marginBottom: '20px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div
+                style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: '#9aada5',
+                  marginBottom: '10px',
+                }}
+              >
+                Step 3
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35',
+                  fontSize: '1.1875rem',
+                  fontWeight: 600,
+                  margin: '0 0 10px',
+                }}
+              >
+                Discover Triggers
+              </h3>
+              <p style={{ color: '#7a9185', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>
+                Know exactly what&apos;s causing your gut issues
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Divider ── */}
+        <div style={{ maxWidth: '720px', margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ height: '1px', backgroundColor: '#d6cfc4' }} />
+        </div>
+
+        {/* ── What You'll Discover ── */}
+        <section style={{ padding: '80px 24px', maxWidth: '720px', margin: '0 auto' }}>
+          <p className="section-label" style={{ textAlign: 'center' }}>What You&apos;ll Discover</p>
+          <h2
+            style={{
+              fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+              color: '#1e4d35',
+              fontSize: '2rem',
+              fontWeight: 600,
+              letterSpacing: '-0.015em',
+              textAlign: 'center',
+              margin: '0 0 48px',
+            }}
+          >
+            Your health, finally decoded
+          </h2>
+
+          <div
+            className="discover-row"
+            style={{ display: 'flex', gap: '16px', alignItems: 'stretch' }}
+          >
+            {/* Card 1 */}
+            <div className="discover-card">
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  backgroundColor: '#e8f5ee',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#1e6641',
+                  marginBottom: '18px',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+                  <path d="M7 2v20" />
+                  <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+                </svg>
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35',
+                  fontSize: '1.0625rem',
+                  fontWeight: 600,
+                  margin: '0 0 10px',
+                }}
+              >
+                Food Triggers
+              </h3>
+              <p style={{ color: '#7a9185', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>
+                Find out which specific foods are causing bloating, cramps or fatigue
+              </p>
+            </div>
+
+            {/* Card 2 */}
+            <div className="discover-card">
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  backgroundColor: '#e8f0fb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2c5ea8',
+                  marginBottom: '18px',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35',
+                  fontSize: '1.0625rem',
+                  fontWeight: 600,
+                  margin: '0 0 10px',
+                }}
+              >
+                Sleep Impact
+              </h3>
+              <p style={{ color: '#7a9185', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>
+                See how sleep duration affects your symptoms the next day
+              </p>
+            </div>
+
+            {/* Card 3 */}
+            <div className="discover-card">
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  backgroundColor: '#fef9e7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#b07d00',
+                  marginBottom: '18px',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35',
+                  fontSize: '1.0625rem',
+                  fontWeight: 600,
+                  margin: '0 0 10px',
+                }}
+              >
+                Stress Patterns
+              </h3>
+              <p style={{ color: '#7a9185', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>
+                Understand the link between your stress levels and gut health
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Divider ── */}
+        <div style={{ maxWidth: '720px', margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ height: '1px', backgroundColor: '#d6cfc4' }} />
+        </div>
+
+        {/* ── Final CTA ── */}
+        <section
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            padding: '90px 24px 110px',
+          }}
+        >
+          <h2
+            style={{
+              fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+              color: '#1e4d35',
+              fontSize: '2.25rem',
+              fontWeight: 600,
+              letterSpacing: '-0.015em',
+              margin: '0 0 16px',
+              maxWidth: '480px',
+            }}
+          >
+            Ready to find your triggers?
+          </h2>
+          <p
+            style={{
+              color: '#7a9185',
+              fontSize: '0.9375rem',
+              lineHeight: 1.65,
+              maxWidth: '360px',
+              margin: '0 0 40px',
+            }}
+          >
+            Start logging today and let AI do the hard work of connecting the dots.
+          </p>
+          <Link href="/log" className="cta-btn">
+            Start Tracking →
+          </Link>
+        </section>
       </main>
     </>
   )
