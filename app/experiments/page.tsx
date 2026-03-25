@@ -59,6 +59,7 @@ export default function ExperimentsPage() {
   const [error, setError] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
   const [userInitial, setUserInitial] = useState('?')
+  const [deleteConfirming, setDeleteConfirming] = useState(false)
 
   // Form state
   const [name, setName] = useState('')
@@ -152,6 +153,23 @@ export default function ExperimentsPage() {
     setResult(null)
   }
 
+  function handleDeleteClick() {
+    if (!deleteConfirming) {
+      setDeleteConfirming(true)
+      setTimeout(() => setDeleteConfirming(false), 3000)
+    } else {
+      handleDeleteConfirmed()
+    }
+  }
+
+  async function handleDeleteConfirmed() {
+    if (!experiment) return
+    setDeleteConfirming(false)
+    await supabase.from('experiments').delete().eq('id', experiment.id)
+    setExperiment(null)
+    setResult(null)
+  }
+
   const isExpired = experiment?.status === 'active' && daysRemaining(experiment.end_date) === 0
 
   return (
@@ -177,6 +195,8 @@ export default function ExperimentsPage() {
         .primary-btn:not(:disabled):active { transform: scale(0.98); }
         .danger-btn { transition: background-color 0.2s ease, border-color 0.2s ease; }
         .danger-btn:hover { background-color: #fff0ee !important; border-color: #fdd5cc !important; }
+        .delete-btn { transition: color 0.15s ease, border-color 0.15s ease; }
+        .delete-btn:hover { color: #c0392b !important; border-color: #fdd5cc !important; }
         textarea, input[type="text"] {
           outline: none;
           transition: border-color 0.2s ease, background-color 0.2s ease;
@@ -624,6 +644,26 @@ export default function ExperimentsPage() {
                   >
                     End experiment &amp; get verdict
                   </button>
+                  <button
+                    onClick={handleDeleteClick}
+                    className="delete-btn"
+                    style={{
+                      width: '100%',
+                      marginTop: '10px',
+                      backgroundColor: 'transparent',
+                      color: deleteConfirming ? '#c0392b' : '#c0a8a0',
+                      borderRadius: '14px',
+                      padding: '11px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      border: `1px solid ${deleteConfirming ? '#fdd5cc' : '#e8e0d8'}`,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'color 0.15s ease, border-color 0.15s ease',
+                    }}
+                  >
+                    {deleteConfirming ? 'Are you sure? Click again to delete' : 'Delete Experiment'}
+                  </button>
                 </div>
               </div>
             )}
@@ -684,6 +724,26 @@ export default function ExperimentsPage() {
                     }}
                   >
                     Get AI Verdict →
+                  </button>
+                  <button
+                    onClick={handleDeleteClick}
+                    className="delete-btn"
+                    style={{
+                      width: '100%',
+                      marginTop: '10px',
+                      backgroundColor: 'transparent',
+                      color: deleteConfirming ? '#c0392b' : '#c0a8a0',
+                      borderRadius: '14px',
+                      padding: '11px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      border: `1px solid ${deleteConfirming ? '#fdd5cc' : '#e8e0d8'}`,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'color 0.15s ease, border-color 0.15s ease',
+                    }}
+                  >
+                    {deleteConfirming ? 'Are you sure? Click again to delete' : 'Delete Experiment'}
                   </button>
                 </div>
               </div>
@@ -819,9 +879,29 @@ export default function ExperimentsPage() {
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     letterSpacing: '0.02em',
+                    marginBottom: '10px',
                   }}
                 >
                   Start a New Experiment →
+                </button>
+                <button
+                  onClick={handleDeleteClick}
+                  className="delete-btn"
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'transparent',
+                    color: deleteConfirming ? '#c0392b' : '#c0a8a0',
+                    borderRadius: '14px',
+                    padding: '11px',
+                    fontSize: '0.8125rem',
+                    fontWeight: 500,
+                    border: `1px solid ${deleteConfirming ? '#fdd5cc' : '#e8e0d8'}`,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'color 0.15s ease, border-color 0.15s ease',
+                  }}
+                >
+                  {deleteConfirming ? 'Are you sure? Click again to delete' : 'Delete Experiment'}
                 </button>
               </div>
             )}
