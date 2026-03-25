@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase'
 
 interface Log {
   id: string
-  type: 'meal' | 'symptom' | 'sleep' | 'stress'
+  type: 'meal' | 'symptom' | 'sleep' | 'stress' | 'supplement'
   content: string
   severity: number | null
   hours: number | null
@@ -17,6 +17,13 @@ interface DayGroup {
   label: string
   entries: Log[]
 }
+
+const PILL_ICON = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="9" width="18" height="6" rx="3" />
+    <line x1="12" y1="9" x2="12" y2="15" />
+  </svg>
+)
 
 const TYPE_META: Record<
   Log['type'],
@@ -62,6 +69,11 @@ const TYPE_META: Record<
         <line x1="15" y1="9" x2="15.01" y2="9" />
       </svg>
     ),
+  },
+  supplement: {
+    bg: '#f0ebfa',
+    iconColor: '#6b4f9e',
+    icon: PILL_ICON,
   },
 }
 

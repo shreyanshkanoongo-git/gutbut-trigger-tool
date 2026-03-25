@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 
-type LogType = 'meal' | 'symptom' | 'sleep' | 'stress'
+type LogType = 'meal' | 'symptom' | 'sleep' | 'stress' | 'supplement'
 
 const LOG_TYPES = [
   {
@@ -52,6 +52,17 @@ const LOG_TYPES = [
       </svg>
     ),
   },
+  {
+    type: 'supplement' as LogType,
+    label: 'Supplement',
+    subtitle: 'What you took',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="9" width="18" height="6" rx="3" />
+        <line x1="12" y1="9" x2="12" y2="15" />
+      </svg>
+    ),
+  },
 ]
 
 export default function Home() {
@@ -59,14 +70,21 @@ export default function Home() {
   const [content, setContent] = useState('')
   const [severity, setSeverity] = useState(3)
   const [hours, setHours] = useState('')
+  const [supplementDose, setSupplementDose] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
     setLoading(true)
+    let finalContent = content || ''
+    if (activeLog === 'supplement' && supplementDose.trim()) {
+      finalContent = finalContent
+        ? `${finalContent} — ${supplementDose.trim()}`
+        : supplementDose.trim()
+    }
     const { error } = await supabase.from('logs').insert({
       type: activeLog,
-      content: content || '',
+      content: finalContent,
       severity: activeLog === 'symptom' || activeLog === 'stress' ? severity : null,
       hours: activeLog === 'sleep' ? parseFloat(hours) : null,
       user_id: 'anonymous',
@@ -77,6 +95,7 @@ export default function Home() {
       setContent('')
       setSeverity(3)
       setHours('')
+      setSupplementDose('')
       setTimeout(() => {
         setSubmitted(false)
         setActiveLog(null)
@@ -278,9 +297,10 @@ export default function Home() {
                     textAlign: 'left',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
+                    gridColumn: type === 'supplement' ? 'span 2' : undefined,
                   }}
                 >
-                  <div style={{ color: '#1e4d35', marginBottom: '16px' }}>{icon}</div>
+                  <div style={{ color: type === 'supplement' ? '#6b4f9e' : '#1e4d35', marginBottom: '16px' }}>{icon}</div>
                   <div style={{ color: '#1e4d35', fontSize: '1rem', fontWeight: 600, marginBottom: '4px' }}>
                     {label}
                   </div>
@@ -336,8 +356,8 @@ export default function Home() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '30px' }}>
                 <div
                   style={{
-                    color: '#1e4d35',
-                    backgroundColor: '#edf5f0',
+                    color: activeLog === 'supplement' ? '#6b4f9e' : '#1e4d35',
+                    backgroundColor: activeLog === 'supplement' ? '#f0ebfa' : '#edf5f0',
                     borderRadius: '14px',
                     padding: '11px',
                     display: 'flex',
@@ -443,6 +463,54 @@ export default function Home() {
                     <span style={{ color: '#c0c8c4', fontSize: '0.7rem' }}>Severe</span>
                   </div>
                 </div>
+              )}
+
+              {/* Supplement inputs */}
+              {activeLog === 'supplement' && (
+                <>
+                  <textarea
+                    style={{
+                      width: '100%',
+                      border: '1px solid #e4ddd2',
+                      borderRadius: '14px',
+                      padding: '14px 16px',
+                      fontSize: '0.9rem',
+                      marginBottom: '12px',
+                      fontFamily: 'inherit',
+                      color: '#1e4d35',
+                      backgroundColor: '#faf8f4',
+                      resize: 'none',
+                      boxSizing: 'border-box',
+                      lineHeight: 1.65,
+                      display: 'block',
+                    }}
+                    rows={2}
+                    placeholder="What supplement did you take? e.g. Probiotic 10 billion CFU, Vitamin D 2000 IU"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                  />
+                  <textarea
+                    style={{
+                      width: '100%',
+                      border: '1px solid #e4ddd2',
+                      borderRadius: '14px',
+                      padding: '14px 16px',
+                      fontSize: '0.9rem',
+                      marginBottom: '20px',
+                      fontFamily: 'inherit',
+                      color: '#1e4d35',
+                      backgroundColor: '#faf8f4',
+                      resize: 'none',
+                      boxSizing: 'border-box',
+                      lineHeight: 1.65,
+                      display: 'block',
+                    }}
+                    rows={2}
+                    placeholder="Dose / notes (optional) — e.g. 1 capsule after breakfast"
+                    value={supplementDose}
+                    onChange={(e) => setSupplementDose(e.target.value)}
+                  />
+                </>
               )}
 
               {/* Stress note textarea */}

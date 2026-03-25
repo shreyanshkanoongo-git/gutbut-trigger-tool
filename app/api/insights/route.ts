@@ -39,10 +39,11 @@ export async function GET(req: NextRequest) {
         day: 'numeric',
         month: 'short',
       })
-      if (log.type === 'meal')    return `${date} — Meal: ${log.content}`
-      if (log.type === 'symptom') return `${date} — Symptom: ${log.content} (severity ${log.severity}/5)`
-      if (log.type === 'sleep')   return `${date} — Sleep: ${log.hours} hours`
-      if (log.type === 'stress')  return `${date} — Stress: ${log.severity}/5${log.content ? `, note: ${log.content}` : ''}`
+      if (log.type === 'meal')       return `${date} — Meal: ${log.content}`
+      if (log.type === 'symptom')    return `${date} — Symptom: ${log.content} (severity ${log.severity}/5)`
+      if (log.type === 'sleep')      return `${date} — Sleep: ${log.hours} hours`
+      if (log.type === 'stress')     return `${date} — Stress: ${log.severity}/5${log.content ? `, note: ${log.content}` : ''}`
+      if (log.type === 'supplement') return `${date} — Supplement: ${log.content}`
       return ''
     })
     .filter(Boolean)
@@ -60,7 +61,7 @@ Return this exact JSON shape:
   "insights": [
     {
       "id": 1,
-      "category": "food" | "sleep" | "stress" | "positive",
+      "category": "food" | "sleep" | "stress" | "supplement" | "positive",
       "severity": "high" | "medium" | "low",
       "text": "<2–3 sentence pattern description using real data>",
       "count": <how many times this pattern appeared>,
@@ -74,6 +75,7 @@ Rules:
 - category "food" = meals causing symptoms
 - category "sleep" = sleep duration affecting next-day energy or symptoms
 - category "stress" = stress correlating with gut issues
+- category "supplement" = patterns involving supplements — for example, on days the user took probiotics were symptoms lower? Did any supplement correlate with better or worse gut health? Name the specific supplement.
 - category "positive" = things that are going well or improving
 - severity "high" if it affects >50% of days or symptom severity ≥ 4
 - severity "medium" if it affects 25–50% or severity 2–3

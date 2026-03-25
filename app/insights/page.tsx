@@ -13,7 +13,7 @@ interface Summary {
 
 interface Insight {
   id: number
-  category: 'food' | 'sleep' | 'stress' | 'positive'
+  category: 'food' | 'sleep' | 'stress' | 'positive' | 'supplement'
   severity: 'high' | 'medium' | 'low'
   text: string
   count: number
@@ -72,6 +72,15 @@ const CATEGORY_META: Record<
       </svg>
     ),
   },
+  supplement: {
+    label: 'Supplement Patterns',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="9" width="18" height="6" rx="3" />
+        <line x1="12" y1="9" x2="12" y2="15" />
+      </svg>
+    ),
+  },
 }
 
 const SEVERITY_STYLES: Record<
@@ -84,7 +93,7 @@ const SEVERITY_STYLES: Record<
 }
 
 // Order categories for consistent display
-const CATEGORY_ORDER: Insight['category'][] = ['food', 'sleep', 'stress', 'positive']
+const CATEGORY_ORDER: Insight['category'][] = ['food', 'sleep', 'stress', 'supplement', 'positive']
 
 export default function InsightsPage() {
   const [dateRange, setDateRange] = useState<DateRange>('7')
@@ -432,12 +441,12 @@ export default function InsightsPage() {
                         alignItems: 'center',
                         gap: '8px',
                         marginBottom: '12px',
-                        color: '#1e4d35',
+                        color: cat === 'supplement' ? '#6b4f9e' : '#1e4d35',
                       }}
                     >
                       <div
                         style={{
-                          backgroundColor: '#edf5f0',
+                          backgroundColor: cat === 'supplement' ? '#f0ebfa' : '#edf5f0',
                           borderRadius: '8px',
                           padding: '6px',
                           display: 'flex',
