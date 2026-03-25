@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 
@@ -73,6 +73,17 @@ export default function Home() {
   const [supplementDose, setSupplementDose] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [userInitial, setUserInitial] = useState('?')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id)
+        setUserInitial((user.email?.[0] ?? '?').toUpperCase())
+      }
+    })
+  }, [])
 
   const handleSubmit = async () => {
     setLoading(true)
@@ -87,7 +98,7 @@ export default function Home() {
       content: finalContent,
       severity: activeLog === 'symptom' || activeLog === 'stress' ? severity : null,
       hours: activeLog === 'sleep' ? parseFloat(hours) : null,
-      user_id: 'anonymous',
+      user_id: userId ?? 'anonymous',
     })
     setLoading(false)
     if (!error) {
@@ -183,7 +194,35 @@ export default function Home() {
         style={{ backgroundColor: '#f5f0e8', fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)" }}
       >
         {/* ── Header ── */}
-        <div className="w-full max-w-md mb-12 fade-in-up">
+        <div className="w-full max-w-md mb-12 fade-in-up" style={{ position: 'relative' }}>
+          {/* Profile icon */}
+          <Link href="/profile">
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: '#1e4d35',
+                color: '#f5f0e8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                boxShadow: '0 2px 10px rgba(30,77,53,0.18)',
+                flexShrink: 0,
+              }}
+              title="View profile"
+            >
+              {userInitial}
+            </div>
+          </Link>
+
           <div style={{ textAlign: 'center' }}>
             <h1
               style={{

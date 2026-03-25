@@ -57,6 +57,7 @@ export default function ExperimentsPage() {
   const [analyzingResult, setAnalyzingResult] = useState(false)
   const [result, setResult] = useState<ExperimentResult | null>(null)
   const [error, setError] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
 
   // Form state
   const [name, setName] = useState('')
@@ -69,10 +70,14 @@ export default function ExperimentsPage() {
 
   async function loadExperiment() {
     setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const uid = user?.id ?? 'anonymous'
+    setUserId(uid)
+
     const { data, error } = await supabase
       .from('experiments')
       .select('*')
-      .eq('user_id', 'anonymous')
+      .eq('user_id', uid)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -102,7 +107,7 @@ export default function ExperimentsPage() {
         start_date: start.toISOString().split('T')[0],
         end_date: end.toISOString().split('T')[0],
         status: 'active',
-        user_id: 'anonymous',
+        user_id: userId ?? 'anonymous',
       })
       .select()
       .single()
