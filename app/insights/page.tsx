@@ -22,6 +22,7 @@ interface Insight {
 }
 
 interface InsightsData {
+  weeklySummary?: string
   summary: Summary
   insights: Insight[]
   insufficient?: boolean
@@ -237,6 +238,60 @@ export default function InsightsPage() {
           </div>
           <div style={{ width: '100%', height: '1px', backgroundColor: '#d6cfc4', marginTop: '24px' }} />
         </div>
+
+        {/* ── Weekly Summary Card ── */}
+        {!loading && data && !data.insufficient && data.weeklySummary && (
+          <div
+            className="w-full max-w-md mb-8 fade-in-up"
+            style={{ animationDelay: '0.05s' }}
+          >
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '20px',
+                border: '1px solid #e4ddd2',
+                borderLeft: '4px solid #1e4d35',
+                padding: '22px 24px',
+                boxShadow: '0 2px 12px rgba(30,77,53,0.05)',
+              }}
+            >
+              <p
+                style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: '#7a9185',
+                  margin: '0 0 8px',
+                }}
+              >
+                Weekly Summary
+              </p>
+              <h3
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35',
+                  fontSize: '1.125rem',
+                  fontWeight: 600,
+                  margin: '0 0 12px',
+                  lineHeight: 1.3,
+                }}
+              >
+                Your Week in Review
+              </h3>
+              <p
+                style={{
+                  color: '#4a5568',
+                  fontSize: '0.9rem',
+                  lineHeight: 1.7,
+                  margin: 0,
+                }}
+              >
+                🌿 {data.weeklySummary}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ── Date Range Filter ── */}
         <div className="w-full max-w-md mb-8 fade-in-up" style={{ animationDelay: '0.05s' }}>

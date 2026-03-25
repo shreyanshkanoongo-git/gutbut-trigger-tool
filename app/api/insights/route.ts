@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
 
 Return this exact JSON shape:
 {
+  "weeklySummary": "<2-3 sentence warm, personal summary written like a health coach. Mention how many days they logged, their biggest trigger, and one specific thing to focus on next week.>",
   "summary": {
     "totalLogs": <total number of log entries>,
     "daysTracked": <number of distinct days in the data>,
@@ -80,6 +81,7 @@ Rules:
 - severity "high" if it affects >50% of days or symptom severity ≥ 4
 - severity "medium" if it affects 25–50% or severity 2–3
 - severity "low" if it affects <25% or is a positive trend
+- Also write a weeklySummary field: a 2-3 sentence personal health coach summary of this person's week. Be warm, specific, and encouraging. Mention actual foods or symptoms by name. End with one concrete focus for next week.
 - Return 3 to 6 insights total. Only include categories you have evidence for.
 - Return ONLY the raw JSON. No code fences, no explanation.
 
