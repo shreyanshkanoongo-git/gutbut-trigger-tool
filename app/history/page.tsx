@@ -184,6 +184,11 @@ export default function HistoryPage() {
         .nav-btn {
           transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
+
+        @media (max-width: 640px) {
+          .history-header { flex-wrap: wrap; gap: 12px; }
+          .history-header-right { flex-shrink: 0; }
+        }
       `}</style>
 
       <main
@@ -192,7 +197,7 @@ export default function HistoryPage() {
       >
         {/* ── Header ── */}
         <div className="w-full max-w-md mb-10 fade-in-up">
-          <div className="flex items-start justify-between">
+          <div className="history-header flex items-start justify-between">
             <div>
               <h1
                 style={{
@@ -220,7 +225,7 @@ export default function HistoryPage() {
                 All your entries
               </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="history-header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Link href="/log">
                 <button
                   className="nav-btn"

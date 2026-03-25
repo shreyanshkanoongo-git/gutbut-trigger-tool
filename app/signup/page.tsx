@@ -53,6 +53,10 @@ export default function SignUpPage() {
         .submit-btn { transition: background-color 0.2s ease, transform 0.15s ease; }
         .submit-btn:not(:disabled):hover  { background-color: #163b28 !important; }
         .submit-btn:not(:disabled):active { transform: scale(0.98); }
+
+        @media (max-width: 640px) {
+          .auth-card { padding: 24px 20px !important; }
+        }
       `}</style>
 
       <main
@@ -92,6 +96,7 @@ export default function SignUpPage() {
 
           {/* Card */}
           <div
+            className="auth-card"
             style={{
               backgroundColor: '#ffffff',
               borderRadius: '26px',

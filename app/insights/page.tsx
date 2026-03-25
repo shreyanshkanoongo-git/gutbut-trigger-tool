@@ -178,6 +178,13 @@ export default function InsightsPage() {
         .back-btn {
           transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
+
+        @media (max-width: 640px) {
+          .insights-header { flex-wrap: wrap; gap: 12px; }
+          .insights-header-right { flex-shrink: 0; }
+          .summary-bar { grid-template-columns: 1fr 1fr !important; }
+          .summary-bar-top-trigger { grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 16px; margin-top: 4px; }
+        }
       `}</style>
 
       <main
@@ -186,7 +193,7 @@ export default function InsightsPage() {
       >
         {/* ── Header ── */}
         <div className="w-full max-w-md mb-8 fade-in-up">
-          <div className="flex items-start justify-between">
+          <div className="insights-header flex items-start justify-between">
             <div>
               <h1
                 style={{
@@ -214,7 +221,7 @@ export default function InsightsPage() {
                 Your patterns
               </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="insights-header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Link href="/log">
                 <button
                   className="back-btn"
@@ -364,6 +371,7 @@ export default function InsightsPage() {
             style={{ animationDelay: '0.1s' }}
           >
             <div
+              className="summary-bar"
               style={{
                 backgroundColor: '#1e4d35',
                 borderRadius: '20px',
@@ -374,11 +382,11 @@ export default function InsightsPage() {
               }}
             >
               {[
-                { value: data.summary.totalLogs, label: 'logs analysed' },
-                { value: data.summary.daysTracked, label: 'days tracked' },
-                { value: data.summary.topTrigger, label: 'top trigger' },
-              ].map(({ value, label }) => (
-                <div key={label} style={{ textAlign: 'center' }}>
+                { value: data.summary.totalLogs, label: 'logs analysed', mobile: '' },
+                { value: data.summary.daysTracked, label: 'days tracked', mobile: '' },
+                { value: data.summary.topTrigger, label: 'top trigger', mobile: 'summary-bar-top-trigger' },
+              ].map(({ value, label, mobile }) => (
+                <div key={label} className={mobile} style={{ textAlign: 'center' }}>
                   <div
                     style={{
                       fontFamily: "var(--font-playfair, 'Playfair Display', serif)",

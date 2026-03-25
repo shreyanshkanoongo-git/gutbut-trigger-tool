@@ -187,6 +187,13 @@ export default function Home() {
 
         .back-btn { transition: color 0.15s ease; }
         .back-btn:hover { color: #1e4d35 !important; }
+
+        @media (max-width: 640px) {
+          .log-grid { grid-template-columns: 1fr !important; }
+          .log-grid > * { grid-column: span 1 !important; }
+          .nav-buttons { flex-wrap: wrap !important; gap: 6px !important; }
+          .nav-buttons a > button { padding: 8px 14px !important; font-size: 0.75rem !important; }
+        }
       `}</style>
 
       <main
@@ -250,7 +257,7 @@ export default function Home() {
             >
               Gut Health Tracker
             </p>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            <div className="nav-buttons" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
               <Link href="/history">
                 <button
                   className="back-btn"
@@ -358,7 +365,7 @@ export default function Home() {
             >
               What would you like to log?
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="log-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {LOG_TYPES.map(({ type, label, subtitle, icon }) => (
                 <button
                   key={type}

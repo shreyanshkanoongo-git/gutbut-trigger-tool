@@ -69,9 +69,14 @@ export default function LandingPage() {
         }
 
         @media (max-width: 640px) {
-          .steps-row { flex-direction: column !important; }
+          .steps-row { flex-direction: column !important; gap: 28px !important; }
           .discover-row { flex-direction: column !important; }
-          .hero-heading { font-size: 2.5rem !important; }
+          .hero-heading { font-size: 2.2rem !important; }
+          .connector-arrow { display: none !important; }
+          .hero-section { padding: 64px 20px 56px !important; }
+          .cta-section { padding: 64px 20px 80px !important; }
+          .cta-h2 { font-size: 1.75rem !important; }
+          .discover-card { min-width: 0 !important; width: 100% !important; }
         }
       `}</style>
 
@@ -84,6 +89,7 @@ export default function LandingPage() {
       >
         {/* ── Hero ── */}
         <section
+          className="hero-section"
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -209,6 +215,7 @@ export default function LandingPage() {
 
             {/* Connector */}
             <div
+              className="connector-arrow"
               style={{
                 marginTop: '26px',
                 color: '#c8bfb0',
@@ -260,6 +267,7 @@ export default function LandingPage() {
 
             {/* Connector */}
             <div
+              className="connector-arrow"
               style={{
                 marginTop: '26px',
                 color: '#c8bfb0',
@@ -450,6 +458,7 @@ export default function LandingPage() {
 
         {/* ── Final CTA ── */}
         <section
+          className="cta-section"
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -459,6 +468,7 @@ export default function LandingPage() {
           }}
         >
           <h2
+            className="cta-h2"
             style={{
               fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
               color: '#1e4d35',

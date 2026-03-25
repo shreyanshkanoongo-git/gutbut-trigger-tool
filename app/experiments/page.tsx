@@ -186,6 +186,11 @@ export default function ExperimentsPage() {
           background-color: #ffffff !important;
         }
         .duration-btn { transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease; }
+
+        @media (max-width: 640px) {
+          .exp-header { flex-wrap: wrap; gap: 12px; }
+          .exp-header-right { flex-shrink: 0; }
+        }
       `}</style>
 
       <main
@@ -194,7 +199,7 @@ export default function ExperimentsPage() {
       >
         {/* ── Header ── */}
         <div className="w-full max-w-md mb-10 fade-in-up">
-          <div className="flex items-start justify-between">
+          <div className="exp-header flex items-start justify-between">
             <div>
               <h1
                 style={{
@@ -222,7 +227,7 @@ export default function ExperimentsPage() {
                 Test your triggers
               </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="exp-header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Link href="/log">
                 <button
                   className="nav-btn"
