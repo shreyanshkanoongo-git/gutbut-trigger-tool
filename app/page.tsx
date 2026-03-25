@@ -22,16 +22,50 @@ export default function LandingPage() {
           letter-spacing: 0.02em;
           padding: 16px 40px;
           border-radius: 100px;
-          border: none;
+          border: 2px solid #1e4d35;
           cursor: pointer;
           text-decoration: none;
           transition: background-color 0.2s ease, transform 0.15s ease;
         }
         .cta-btn:hover {
           background-color: #163b28;
+          border-color: #163b28;
           transform: translateY(-2px);
         }
         .cta-btn:active { transform: translateY(0); }
+
+        .cta-btn-secondary {
+          display: inline-block;
+          background-color: transparent;
+          color: #1e4d35;
+          font-size: 1rem;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          padding: 16px 40px;
+          border-radius: 100px;
+          border: 2px solid #1e4d35;
+          cursor: pointer;
+          text-decoration: none;
+          transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+        }
+        .cta-btn-secondary:hover {
+          background-color: #1e4d35;
+          color: #f5f0e8;
+          transform: translateY(-2px);
+        }
+        .cta-btn-secondary:active { transform: translateY(0); }
+
+        .cta-group {
+          display: flex;
+          gap: 14px;
+          align-items: center;
+          justify-content: center;
+        }
+
+        @media (max-width: 640px) {
+          .cta-group { flex-direction: column; gap: 10px; width: 100%; max-width: 280px; }
+          .cta-btn, .cta-btn-secondary { width: 100%; text-align: center; padding: 15px 32px; }
+        }
 
         .step-icon {
           width: 52px;
@@ -143,9 +177,12 @@ export default function LandingPage() {
             Log your meals, symptoms, sleep and stress. Get AI-powered insights that tell you exactly what&apos;s triggering your gut issues — in plain language.
           </p>
 
-          <div className="fade-in-up-4">
-            <Link href="/log" className="cta-btn">
-              Start Tracking →
+          <div className="cta-group fade-in-up-4">
+            <Link href="/signup" className="cta-btn">
+              Sign Up Free
+            </Link>
+            <Link href="/login" className="cta-btn-secondary">
+              Log In
             </Link>
           </div>
         </section>
@@ -492,9 +529,14 @@ export default function LandingPage() {
           >
             Start logging today and let AI do the hard work of connecting the dots.
           </p>
-          <Link href="/log" className="cta-btn">
-            Start Tracking →
-          </Link>
+          <div className="cta-group">
+            <Link href="/signup" className="cta-btn">
+              Sign Up Free
+            </Link>
+            <Link href="/login" className="cta-btn-secondary">
+              Log In
+            </Link>
+          </div>
         </section>
       </main>
     </>
