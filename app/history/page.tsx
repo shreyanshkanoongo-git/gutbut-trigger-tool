@@ -133,6 +133,13 @@ export default function HistoryPage() {
   const [groups, setGroups] = useState<DayGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [userInitial, setUserInitial] = useState('?')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserInitial((user.email?.[0] ?? '?').toUpperCase())
+    })
+  }, [])
 
   useEffect(() => {
     supabase
@@ -213,35 +220,60 @@ export default function HistoryPage() {
                 All your entries
               </p>
             </div>
-            <Link href="/log">
-              <button
-                className="nav-btn"
-                style={{
-                  backgroundColor: 'transparent',
-                  color: '#1e4d35',
-                  fontSize: '0.8125rem',
-                  letterSpacing: '0.04em',
-                  padding: '10px 22px',
-                  borderRadius: '100px',
-                  border: '1px solid #c8bfb0',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  fontWeight: 500,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1e4d35'
-                  e.currentTarget.style.color = '#f5f0e8'
-                  e.currentTarget.style.borderColor = '#1e4d35'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                  e.currentTarget.style.color = '#1e4d35'
-                  e.currentTarget.style.borderColor = '#c8bfb0'
-                }}
-              >
-                ← Log
-              </button>
-            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Link href="/log">
+                <button
+                  className="nav-btn"
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#1e4d35',
+                    fontSize: '0.8125rem',
+                    letterSpacing: '0.04em',
+                    padding: '10px 22px',
+                    borderRadius: '100px',
+                    border: '1px solid #c8bfb0',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontWeight: 500,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#1e4d35'
+                    e.currentTarget.style.color = '#f5f0e8'
+                    e.currentTarget.style.borderColor = '#1e4d35'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.color = '#1e4d35'
+                    e.currentTarget.style.borderColor = '#c8bfb0'
+                  }}
+                >
+                  ← Log
+                </button>
+              </Link>
+              <Link href="/profile">
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    backgroundColor: '#1e4d35',
+                    color: '#f5f0e8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                    boxShadow: '0 2px 10px rgba(30,77,53,0.18)',
+                    flexShrink: 0,
+                  }}
+                  title="View profile"
+                >
+                  {userInitial}
+                </div>
+              </Link>
+            </div>
           </div>
           <div style={{ width: '100%', height: '1px', backgroundColor: '#d6cfc4', marginTop: '24px' }} />
         </div>
