@@ -188,8 +188,9 @@ export default function ExperimentsPage() {
         .duration-btn { transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease; }
 
         @media (max-width: 640px) {
-          .exp-header { flex-wrap: wrap; gap: 12px; }
-          .exp-header-right { flex-shrink: 0; }
+          .exp-header { flex-wrap: nowrap; align-items: center; }
+          .exp-header-left { min-width: 0; }
+          .exp-header-right { flex-shrink: 0; margin-left: 12px; }
         }
       `}</style>
 
@@ -200,7 +201,7 @@ export default function ExperimentsPage() {
         {/* ── Header ── */}
         <div className="w-full max-w-md mb-10 fade-in-up">
           <div className="exp-header flex items-start justify-between">
-            <div>
+            <div className="exp-header-left">
               <h1
                 style={{
                   fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
