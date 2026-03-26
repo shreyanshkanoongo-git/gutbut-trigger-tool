@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PROTECTED_ROUTES = ['/log', '/history', '/insights', '/experiments', '/profile', '/my-info']
+const PROTECTED_ROUTES = ['/log', '/history', '/insights', '/experiments', '/profile', '/my-info', '/onboarding']
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -16,6 +16,14 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // If user has already completed onboarding, redirect them away from /onboarding
+  if (pathname.startsWith('/onboarding')) {
+    const onboarded = request.cookies.get('gutbut-onboarded')
+    if (onboarded?.value) {
+      return NextResponse.redirect(new URL('/log', request.url))
+    }
+  }
+
   return NextResponse.next()
 }
 
@@ -27,5 +35,6 @@ export const config = {
     '/experiments/:path*',
     '/profile/:path*',
     '/my-info/:path*',
+    '/onboarding/:path*',
   ],
 }

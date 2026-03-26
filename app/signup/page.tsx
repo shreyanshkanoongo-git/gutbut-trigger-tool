@@ -27,7 +27,7 @@ export default function SignUpPage() {
 
     if (data.session) {
       document.cookie = 'sb-gutbut-session=1; path=/; max-age=604800; SameSite=Lax'
-      router.push('/log')
+      router.push('/onboarding')
     } else {
       setLoading(false)
       setMessage('Check your email to confirm your account, then log in.')
