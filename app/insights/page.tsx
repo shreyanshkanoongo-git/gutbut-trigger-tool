@@ -98,24 +98,28 @@ const SEVERITY_STYLES: Record<
 const CATEGORY_ORDER: Insight['category'][] = ['food', 'sleep', 'stress', 'supplement', 'positive']
 
 export default function InsightsPage() {
-  const [dateRange, setDateRange] = useState<DateRange>('7')
+  const [dateRange, setDateRange] = useState<DateRange>('30')
   const [data, setData] = useState<InsightsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [userInitial, setUserInitial] = useState('?')
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserInitial((user.email?.[0] ?? '?').toUpperCase())
+      if (user) {
+        setUserInitial((user.email?.[0] ?? '?').toUpperCase())
+        setUserId(user.id)
+      }
     })
   }, [])
 
-  const fetchInsights = useCallback(async (range: DateRange) => {
+  const fetchInsights = useCallback(async (range: DateRange, uid: string) => {
     setLoading(true)
     setError('')
     setData(null)
     try {
-      const res = await fetch(`/api/insights?dateRange=${range}`)
+      const res = await fetch(`/api/insights?dateRange=${range}&userId=${uid}`)
       const json = await res.json()
       if (json.error) throw new Error(json.error)
       setData(json)
@@ -127,8 +131,8 @@ export default function InsightsPage() {
   }, [])
 
   useEffect(() => {
-    fetchInsights(dateRange)
-  }, [dateRange, fetchInsights])
+    if (userId) fetchInsights(dateRange, userId)
+  }, [dateRange, userId, fetchInsights])
 
   // Group insights by category, preserving defined order
   const grouped = data?.insights

@@ -93,6 +93,7 @@ export default function ExperimentsPage() {
 
   // Per-experiment state
   const [analyzingId, setAnalyzingId] = useState<string | null>(null)
+  const [fetchingVerdictId, setFetchingVerdictId] = useState<string | null>(null)
   const [deleteConfirming, setDeleteConfirming] = useState<string | null>(null)
   const [openLogId, setOpenLogId] = useState<string | null>(null)
 
@@ -191,6 +192,23 @@ export default function ExperimentsPage() {
       )
     )
     setAnalyzingId(null)
+  }
+
+  async function handleFetchVerdict(experiment: Experiment) {
+    setFetchingVerdictId(experiment.id)
+    const res = await fetch(`/api/experiment-result?experimentId=${experiment.id}`)
+    const json = await res.json()
+    if (!json.error) {
+      const resultStr = JSON.stringify(json)
+      await supabase
+        .from('experiments')
+        .update({ result: resultStr })
+        .eq('id', experiment.id)
+      setExperiments(prev =>
+        prev.map(e => e.id === experiment.id ? { ...e, result: resultStr } : e)
+      )
+    }
+    setFetchingVerdictId(null)
   }
 
   async function handleDeleteClick(experimentId: string) {
@@ -737,16 +755,19 @@ export default function ExperimentsPage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleEndExperiment(exp)}
-                            className="danger-btn"
+                            onClick={() => handleFetchVerdict(exp)}
+                            disabled={fetchingVerdictId === exp.id}
+                            className="primary-btn"
                             style={{
-                              width: '100%', backgroundColor: 'transparent', color: '#c0392b',
-                              borderRadius: '14px', padding: '11px', fontSize: '0.8125rem',
-                              fontWeight: 500, border: '1px solid #fdd5cc',
-                              cursor: 'pointer', fontFamily: 'inherit', marginBottom: '8px',
+                              width: '100%',
+                              backgroundColor: fetchingVerdictId === exp.id ? '#8eb8a3' : '#1e4d35',
+                              color: '#f5f0e8', borderRadius: '14px', padding: '11px',
+                              fontSize: '0.8125rem', fontWeight: 600, border: 'none',
+                              cursor: fetchingVerdictId === exp.id ? 'not-allowed' : 'pointer',
+                              fontFamily: 'inherit', marginBottom: '8px', letterSpacing: '0.01em',
                             }}
                           >
-                            Get Verdict First
+                            {fetchingVerdictId === exp.id ? 'Analysing...' : 'Get AI Verdict →'}
                           </button>
                         )}
 

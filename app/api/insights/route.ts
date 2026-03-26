@@ -9,16 +9,23 @@ const openai = new OpenAI({
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const dateRange = searchParams.get('dateRange') ?? '7'
+  const userId = searchParams.get('userId')
+
+  if (!userId) {
+    return NextResponse.json({ insufficient: true })
+  }
 
   let query = supabase
     .from('logs')
     .select('*')
+    .eq('user_id', userId)
     .order('created_at', { ascending: true })
 
   if (dateRange !== 'all') {
     const days = parseInt(dateRange, 10)
     const since = new Date()
     since.setDate(since.getDate() - days)
+    since.setHours(0, 0, 0, 0)
     query = query.gte('created_at', since.toISOString())
   }
 
