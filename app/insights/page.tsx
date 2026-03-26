@@ -116,6 +116,10 @@ export default function InsightsPage() {
   }, [])
 
   const fetchInsights = useCallback(async (range: DateRange, uid: string) => {
+    if (!uid) {
+      console.warn('[Insights] fetchInsights called with empty uid — aborting')
+      return
+    }
     console.log('[Insights] fetchInsights called — range:', range, 'userId:', uid)
     setLoading(true)
     setError('')

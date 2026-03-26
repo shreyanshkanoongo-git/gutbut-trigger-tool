@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -12,10 +12,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'experimentId is required' }, { status: 400 })
   }
 
+  const adminSupabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
   try {
     console.log('[experiment-result] experimentId:', experimentId)
 
-    const { data: experiment, error: expError } = await supabase
+    const { data: experiment, error: expError } = await adminSupabase
       .from('experiments')
       .select('*')
       .eq('id', experimentId)
@@ -37,21 +42,21 @@ export async function GET(req: NextRequest) {
 
     // Fetch regular health logs (before and during)
     const [{ data: duringLogs }, { data: beforeLogs }, { data: expLogs }] = await Promise.all([
-      supabase
+      adminSupabase
         .from('logs')
         .select('*')
         .eq('user_id', experiment.user_id)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: true }),
-      supabase
+      adminSupabase
         .from('logs')
         .select('*')
         .eq('user_id', experiment.user_id)
         .gte('created_at', beforeStart.toISOString())
         .lte('created_at', beforeEnd.toISOString())
         .order('created_at', { ascending: true }),
-      supabase
+      adminSupabase
         .from('experiment_logs')
         .select('*')
         .eq('experiment_id', experimentId)
@@ -76,7 +81,7 @@ export async function GET(req: NextRequest) {
         duringHighlight: 'No logs were recorded during the experiment.',
         recommendation: 'Log your meals, symptoms, and daily experiment entries each day to get a meaningful verdict.',
       }
-      await supabase
+      await adminSupabase
         .from('experiments')
         .update({ result: JSON.stringify(noDataResult), status: 'completed' })
         .eq('id', experimentId)
@@ -155,7 +160,7 @@ Rules:
     const result = JSON.parse(cleaned)
     console.log('[experiment-result] parsed result verdict:', result.verdict)
 
-    await supabase
+    await adminSupabase
       .from('experiments')
       .update({ result: JSON.stringify(result), status: 'completed' })
       .eq('id', experimentId)

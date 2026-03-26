@@ -94,6 +94,7 @@ export default function ExperimentsPage() {
   // Per-experiment state
   const [analyzingId, setAnalyzingId] = useState<string | null>(null)
   const [fetchingVerdictId, setFetchingVerdictId] = useState<string | null>(null)
+  const [verdictError, setVerdictError] = useState<string | null>(null)
   const [deleteConfirming, setDeleteConfirming] = useState<string | null>(null)
   const [openLogId, setOpenLogId] = useState<string | null>(null)
 
@@ -196,14 +197,20 @@ export default function ExperimentsPage() {
 
   async function handleFetchVerdict(experiment: Experiment) {
     console.log('[handleFetchVerdict] starting for experiment:', experiment.id, experiment.name)
+    setVerdictError(null)
     setFetchingVerdictId(experiment.id)
-    const url = `/api/experiment-result?experimentId=${experiment.id}`
-    console.log('[handleFetchVerdict] fetching:', url)
-    const res = await fetch(url)
-    console.log('[handleFetchVerdict] response status:', res.status)
-    const json = await res.json()
-    console.log('[handleFetchVerdict] response body:', json)
-    if (!json.error) {
+    try {
+      const url = `/api/experiment-result?experimentId=${experiment.id}`
+      console.log('[handleFetchVerdict] fetching:', url)
+      const res = await fetch(url)
+      console.log('[handleFetchVerdict] response status:', res.status)
+      const json = await res.json()
+      console.log('[handleFetchVerdict] response body:', json)
+      if (json.error) {
+        console.error('[handleFetchVerdict] API returned error:', json.error)
+        setVerdictError(`Could not get verdict: ${json.error}`)
+        return
+      }
       const resultStr = JSON.stringify(json)
       const { error: sbError } = await supabase
         .from('experiments')
@@ -213,11 +220,12 @@ export default function ExperimentsPage() {
       setExperiments(prev =>
         prev.map(e => e.id === experiment.id ? { ...e, result: resultStr } : e)
       )
-    } else {
-      console.error('[handleFetchVerdict] API returned error:', json.error)
-      setError(`Verdict error: ${json.error}`)
+    } catch (err) {
+      console.error('[handleFetchVerdict] unexpected error:', err)
+      setVerdictError('Something went wrong. Please try again.')
+    } finally {
+      setFetchingVerdictId(null)
     }
-    setFetchingVerdictId(null)
   }
 
   async function handleDeleteClick(experimentId: string) {
@@ -763,21 +771,28 @@ export default function ExperimentsPage() {
                             Share Result ↗
                           </button>
                         ) : (
-                          <button
-                            onClick={() => handleFetchVerdict(exp)}
-                            disabled={fetchingVerdictId === exp.id}
-                            className="primary-btn"
-                            style={{
-                              width: '100%',
-                              backgroundColor: fetchingVerdictId === exp.id ? '#8eb8a3' : '#1e4d35',
-                              color: '#f5f0e8', borderRadius: '14px', padding: '11px',
-                              fontSize: '0.8125rem', fontWeight: 600, border: 'none',
-                              cursor: fetchingVerdictId === exp.id ? 'not-allowed' : 'pointer',
-                              fontFamily: 'inherit', marginBottom: '8px', letterSpacing: '0.01em',
-                            }}
-                          >
-                            {fetchingVerdictId === exp.id ? 'Analysing...' : 'Get AI Verdict →'}
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleFetchVerdict(exp)}
+                              disabled={fetchingVerdictId === exp.id}
+                              className="primary-btn"
+                              style={{
+                                width: '100%',
+                                backgroundColor: fetchingVerdictId === exp.id ? '#8eb8a3' : '#1e4d35',
+                                color: '#f5f0e8', borderRadius: '14px', padding: '11px',
+                                fontSize: '0.8125rem', fontWeight: 600, border: 'none',
+                                cursor: fetchingVerdictId === exp.id ? 'not-allowed' : 'pointer',
+                                fontFamily: 'inherit', marginBottom: '8px', letterSpacing: '0.01em',
+                              }}
+                            >
+                              {fetchingVerdictId === exp.id ? 'Analysing...' : 'Get AI Verdict →'}
+                            </button>
+                            {verdictError && (
+                              <p style={{ color: '#c0392b', fontSize: '0.8rem', margin: '0 0 8px', textAlign: 'center' }}>
+                                {verdictError}
+                              </p>
+                            )}
+                          </>
                         )}
 
                         <button

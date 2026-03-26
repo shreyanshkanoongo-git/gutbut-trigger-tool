@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 
 const openai = new OpenAI({
@@ -18,7 +18,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ insufficient: true, _debug: 'userId missing from request' })
   }
 
-  let query = supabase
+  const adminSupabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  let query = adminSupabase
     .from('logs')
     .select('*')
     .eq('user_id', userId)
@@ -43,8 +48,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  if (!logs || logs.length < 3) {
-    console.warn('[Insights API] insufficient data — log count:', logs?.length ?? 0, '(need >= 3)')
+  if (!logs || logs.length < 1) {
+    console.warn('[Insights API] insufficient data — log count:', logs?.length ?? 0)
     return NextResponse.json({ insufficient: true, _debug: `only ${logs?.length ?? 0} logs found` })
   }
 
