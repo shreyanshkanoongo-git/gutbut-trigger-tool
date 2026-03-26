@@ -11,8 +11,11 @@ export async function GET(req: NextRequest) {
   const dateRange = searchParams.get('dateRange') ?? '7'
   const userId = searchParams.get('userId')
 
+  console.log('[Insights API] dateRange:', dateRange, '| userId:', userId ?? 'MISSING')
+
   if (!userId) {
-    return NextResponse.json({ insufficient: true })
+    console.warn('[Insights API] userId is null/undefined — returning insufficient')
+    return NextResponse.json({ insufficient: true, _debug: 'userId missing from request' })
   }
 
   let query = supabase
@@ -26,17 +29,23 @@ export async function GET(req: NextRequest) {
     const since = new Date()
     since.setDate(since.getDate() - days)
     since.setHours(0, 0, 0, 0)
+    console.log('[Insights API] date filter: created_at >=', since.toISOString())
     query = query.gte('created_at', since.toISOString())
+  } else {
+    console.log('[Insights API] date filter: All Time (no filter)')
   }
 
   const { data: logs, error } = await query
+
+  console.log('[Insights API] logs fetched:', logs?.length ?? 0, '| error:', error?.message ?? 'none')
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
   if (!logs || logs.length < 3) {
-    return NextResponse.json({ insufficient: true })
+    console.warn('[Insights API] insufficient data — log count:', logs?.length ?? 0, '(need >= 3)')
+    return NextResponse.json({ insufficient: true, _debug: `only ${logs?.length ?? 0} logs found` })
   }
 
   const formatted = logs

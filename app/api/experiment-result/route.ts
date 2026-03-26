@@ -13,11 +13,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    console.log('[experiment-result] experimentId:', experimentId)
+
     const { data: experiment, error: expError } = await supabase
       .from('experiments')
       .select('*')
       .eq('id', experimentId)
       .single()
+
+    console.log('[experiment-result] experiment row:', experiment ? `found (user_id: ${experiment.user_id}, status: ${experiment.status})` : 'NOT FOUND', '| error:', expError?.message ?? 'none')
 
     if (expError || !experiment) {
       return NextResponse.json({ error: 'Experiment not found' }, { status: 404 })
@@ -28,6 +32,8 @@ export async function GET(req: NextRequest) {
     const durationMs = endDate.getTime() - startDate.getTime()
     const beforeEnd = new Date(startDate.getTime() - 1)
     const beforeStart = new Date(startDate.getTime() - durationMs)
+
+    console.log('[experiment-result] date ranges — before:', beforeStart.toISOString(), '→', beforeEnd.toISOString(), '| during:', startDate.toISOString(), '→', endDate.toISOString())
 
     // Fetch regular health logs (before and during)
     const [{ data: duringLogs }, { data: beforeLogs }, { data: expLogs }] = await Promise.all([
@@ -52,10 +58,14 @@ export async function GET(req: NextRequest) {
         .order('day_number', { ascending: true }),
     ])
 
+    console.log('[experiment-result] logs found — before:', beforeLogs?.length ?? 0, '| during:', duringLogs?.length ?? 0, '| experiment_logs:', expLogs?.length ?? 0)
+
     const hasData =
       (duringLogs && duringLogs.length > 0) ||
       (beforeLogs && beforeLogs.length > 0) ||
       (expLogs && expLogs.length > 0)
+
+    console.log('[experiment-result] hasData:', hasData)
 
     if (!hasData) {
       const noDataResult = {
@@ -132,6 +142,7 @@ Rules:
 - Be honest and specific. Do not pad with vague statements.
 - Return ONLY raw JSON. No code fences.`
 
+    console.log('[experiment-result] calling OpenAI...')
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
@@ -139,8 +150,10 @@ Rules:
     })
 
     const raw = completion.choices[0].message.content ?? '{}'
+    console.log('[experiment-result] OpenAI raw response:', raw.slice(0, 300))
     const cleaned = raw.replace(/```json|```/g, '').trim()
     const result = JSON.parse(cleaned)
+    console.log('[experiment-result] parsed result verdict:', result.verdict)
 
     await supabase
       .from('experiments')

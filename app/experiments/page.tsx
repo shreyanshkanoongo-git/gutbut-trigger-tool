@@ -195,18 +195,27 @@ export default function ExperimentsPage() {
   }
 
   async function handleFetchVerdict(experiment: Experiment) {
+    console.log('[handleFetchVerdict] starting for experiment:', experiment.id, experiment.name)
     setFetchingVerdictId(experiment.id)
-    const res = await fetch(`/api/experiment-result?experimentId=${experiment.id}`)
+    const url = `/api/experiment-result?experimentId=${experiment.id}`
+    console.log('[handleFetchVerdict] fetching:', url)
+    const res = await fetch(url)
+    console.log('[handleFetchVerdict] response status:', res.status)
     const json = await res.json()
+    console.log('[handleFetchVerdict] response body:', json)
     if (!json.error) {
       const resultStr = JSON.stringify(json)
-      await supabase
+      const { error: sbError } = await supabase
         .from('experiments')
         .update({ result: resultStr })
         .eq('id', experiment.id)
+      console.log('[handleFetchVerdict] supabase update error:', sbError?.message ?? 'none')
       setExperiments(prev =>
         prev.map(e => e.id === experiment.id ? { ...e, result: resultStr } : e)
       )
+    } else {
+      console.error('[handleFetchVerdict] API returned error:', json.error)
+      setError(`Verdict error: ${json.error}`)
     }
     setFetchingVerdictId(null)
   }

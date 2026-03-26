@@ -107,6 +107,7 @@ export default function InsightsPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
+      console.log('[Insights] getUser result:', user?.id ?? 'null — no authenticated user')
       if (user) {
         setUserInitial((user.email?.[0] ?? '?').toUpperCase())
         setUserId(user.id)
@@ -115,15 +116,21 @@ export default function InsightsPage() {
   }, [])
 
   const fetchInsights = useCallback(async (range: DateRange, uid: string) => {
+    console.log('[Insights] fetchInsights called — range:', range, 'userId:', uid)
     setLoading(true)
     setError('')
     setData(null)
     try {
-      const res = await fetch(`/api/insights?dateRange=${range}&userId=${uid}`)
+      const url = `/api/insights?dateRange=${range}&userId=${uid}`
+      console.log('[Insights] fetching:', url)
+      const res = await fetch(url)
+      console.log('[Insights] response status:', res.status)
       const json = await res.json()
+      console.log('[Insights] response body:', json)
       if (json.error) throw new Error(json.error)
       setData(json)
-    } catch {
+    } catch (err) {
+      console.error('[Insights] fetch error:', err)
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
@@ -131,6 +138,7 @@ export default function InsightsPage() {
   }, [])
 
   useEffect(() => {
+    console.log('[Insights] useEffect fired — userId:', userId, 'dateRange:', dateRange)
     if (userId) fetchInsights(dateRange, userId)
   }, [dateRange, userId, fetchInsights])
 
