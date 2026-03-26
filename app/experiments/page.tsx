@@ -60,6 +60,14 @@ export default function ExperimentsPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [userInitial, setUserInitial] = useState('?')
   const [deleteConfirming, setDeleteConfirming] = useState(false)
+  const [showShare, setShowShare] = useState(false)
+  const [copyDone, setCopyDone] = useState(false)
+
+  function handleCopyLink() {
+    navigator.clipboard.writeText('Check out my gut trigger discovery: gutbut-trigger-tool.vercel.app')
+    setCopyDone(true)
+    setTimeout(() => setCopyDone(false), 2000)
+  }
 
   // Form state
   const [name, setName] = useState('')
@@ -207,10 +215,19 @@ export default function ExperimentsPage() {
         }
         .duration-btn { transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease; }
 
+        .share-btn { transition: background-color 0.18s ease, color 0.18s ease; }
+        .share-btn:hover { background-color: #1e4d35 !important; color: #f5f0e8 !important; }
+        .overlay-copy-btn { transition: background-color 0.2s ease, transform 0.15s ease; }
+        .overlay-copy-btn:hover { background-color: #163b28 !important; }
+        .overlay-copy-btn:active { transform: scale(0.98); }
+        .overlay-close-btn { transition: background-color 0.15s ease, color 0.15s ease; }
+        .overlay-close-btn:hover { background-color: rgba(255,255,255,0.12) !important; }
+
         @media (max-width: 640px) {
           .exp-header { flex-wrap: nowrap; align-items: center; }
           .exp-header-left { min-width: 0; }
           .exp-header-right { flex-shrink: 0; margin-left: 12px; }
+          .share-card { margin: 0 16px; }
         }
       `}</style>
 
@@ -863,6 +880,28 @@ export default function ExperimentsPage() {
                   </div>
                 </div>
 
+                {/* Share Result */}
+                <button
+                  onClick={() => setShowShare(true)}
+                  className="share-btn"
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'transparent',
+                    color: '#1e4d35',
+                    borderRadius: '100px',
+                    padding: '13px',
+                    fontSize: '0.9375rem',
+                    fontWeight: 500,
+                    border: '1px solid #1e4d35',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    letterSpacing: '0.02em',
+                    marginBottom: '12px',
+                  }}
+                >
+                  Share Result ↗
+                </button>
+
                 {/* Start new experiment */}
                 <button
                   onClick={handleReset}
@@ -908,6 +947,177 @@ export default function ExperimentsPage() {
           </>
         )}
       </main>
+
+      {/* ── Share Overlay ── */}
+      {showShare && result && experiment && (() => {
+        const vs = VERDICT_STYLES[result.verdict]
+        return (
+          <div
+            onClick={() => setShowShare(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(10, 24, 16, 0.72)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '24px 16px',
+            }}
+          >
+            {/* Card */}
+            <div
+              className="share-card"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '26px',
+                padding: '32px 28px 28px',
+                width: '100%',
+                maxWidth: '380px',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                marginBottom: '16px',
+              }}
+            >
+              {/* GutBut wordmark */}
+              <p
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35',
+                  fontSize: '1.5rem',
+                  fontWeight: 600,
+                  letterSpacing: '-0.01em',
+                  margin: '0 0 20px',
+                  textAlign: 'center',
+                }}
+              >
+                GutBut
+              </p>
+
+              {/* Experiment name */}
+              <h3
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35',
+                  fontSize: '1.1875rem',
+                  fontWeight: 600,
+                  margin: '0 0 16px',
+                  lineHeight: 1.25,
+                  textAlign: 'center',
+                }}
+              >
+                {experiment.name}
+              </h3>
+
+              {/* Verdict badge */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                <span
+                  style={{
+                    backgroundColor: vs.bg,
+                    color: vs.color,
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    padding: '7px 18px',
+                    borderRadius: '100px',
+                    border: `1px solid ${vs.border}`,
+                  }}
+                >
+                  {vs.icon} {result.verdictLabel}
+                </span>
+              </div>
+
+              {/* One-line summary */}
+              <p
+                style={{
+                  color: '#5a7a6a',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.65,
+                  margin: '0 0 20px',
+                  textAlign: 'center',
+                }}
+              >
+                {result.summary}
+              </p>
+
+              {/* Divider */}
+              <div style={{ height: '1px', backgroundColor: '#f0ebe3', marginBottom: '16px' }} />
+
+              {/* Footer */}
+              <p
+                style={{
+                  color: '#b8b0a4',
+                  fontSize: '0.75rem',
+                  textAlign: 'center',
+                  margin: 0,
+                  lineHeight: 1.55,
+                }}
+              >
+                Discovered with GutBut Trigger Tool
+                <br />
+                <span style={{ color: '#9aada5' }}>gutbut-trigger-tool.vercel.app</span>
+              </p>
+            </div>
+
+            {/* Instruction */}
+            <p
+              style={{
+                color: 'rgba(255,255,255,0.65)',
+                fontSize: '0.8125rem',
+                textAlign: 'center',
+                margin: '0 0 16px',
+                letterSpacing: '0.01em',
+              }}
+            >
+              Screenshot this card to share on WhatsApp or Instagram
+            </p>
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: '10px', width: '100%', maxWidth: '380px' }}>
+              <button
+                onClick={() => setShowShare(false)}
+                className="overlay-close-btn"
+                style={{
+                  flex: 1,
+                  backgroundColor: 'transparent',
+                  color: '#ffffff',
+                  borderRadius: '100px',
+                  padding: '13px',
+                  fontSize: '0.9375rem',
+                  fontWeight: 500,
+                  border: '1px solid rgba(255,255,255,0.35)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Close
+              </button>
+              <button
+                onClick={handleCopyLink}
+                className="overlay-copy-btn"
+                style={{
+                  flex: 1,
+                  backgroundColor: '#1e4d35',
+                  color: '#f5f0e8',
+                  borderRadius: '100px',
+                  padding: '13px',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {copyDone ? 'Copied ✓' : 'Copy Link'}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
     </>
   )
 }
