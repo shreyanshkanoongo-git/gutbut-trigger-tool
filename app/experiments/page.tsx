@@ -37,12 +37,17 @@ interface ExperimentLog {
 }
 
 const VERDICT_STYLES: Record<
-  ExperimentResult['verdict'],
+  string,
   { bg: string; color: string; border: string; icon: string }
 > = {
   confirmed_trigger: { bg: '#fff0ee', color: '#c0392b', border: '#fdd5cc', icon: '⚠️' },
   not_a_trigger:     { bg: '#edf5f0', color: '#1e6641', border: '#b8d4c4', icon: '✓' },
   inconclusive:      { bg: '#fffbec', color: '#b07d00', border: '#f0e0a0', icon: '~' },
+}
+const VERDICT_FALLBACK = { bg: '#fffbec', color: '#b07d00', border: '#f0e0a0', icon: '~' }
+
+function getVerdictStyle(verdict: string | undefined) {
+  return (verdict && VERDICT_STYLES[verdict]) ? VERDICT_STYLES[verdict] : VERDICT_FALLBACK
 }
 
 function daysRemaining(endDate: string): number {
@@ -667,7 +672,7 @@ export default function ExperimentsPage() {
                   {completedExps.map((exp) => {
                     let result: ExperimentResult | null = null
                     try { result = exp.result ? JSON.parse(exp.result) : null } catch { /* ignore */ }
-                    const vs = result ? VERDICT_STYLES[result.verdict] : null
+                    const vs = result ? getVerdictStyle(result.verdict) : null
                     const isConfirmingDelete = deleteConfirming === exp.id
 
                     return (
@@ -716,7 +721,7 @@ export default function ExperimentsPage() {
                           {new Date(exp.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
 
-                        {result && (
+                        {result ? (
                           <button
                             onClick={() => setShareTarget({ experiment: exp, result })}
                             className="share-btn"
@@ -729,6 +734,19 @@ export default function ExperimentsPage() {
                             }}
                           >
                             Share Result ↗
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleEndExperiment(exp)}
+                            className="danger-btn"
+                            style={{
+                              width: '100%', backgroundColor: 'transparent', color: '#c0392b',
+                              borderRadius: '14px', padding: '11px', fontSize: '0.8125rem',
+                              fontWeight: 500, border: '1px solid #fdd5cc',
+                              cursor: 'pointer', fontFamily: 'inherit', marginBottom: '8px',
+                            }}
+                          >
+                            Get Verdict First
                           </button>
                         )}
 
@@ -877,7 +895,7 @@ export default function ExperimentsPage() {
       {/* ── Share Overlay ── */}
       {shareTarget && (() => {
         const { experiment: exp, result } = shareTarget
-        const vs = VERDICT_STYLES[result.verdict]
+        const vs = getVerdictStyle(result.verdict)
         return (
           <div
             onClick={() => setShareTarget(null)}
