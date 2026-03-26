@@ -894,8 +894,18 @@ export default function ExperimentsPage() {
 
       {/* ── Share Overlay ── */}
       {shareTarget && (() => {
-        const { experiment: exp, result } = shareTarget
-        const vs = getVerdictStyle(result.verdict)
+        const { experiment: exp } = shareTarget
+        let parsed: ExperimentResult
+        try {
+          const raw = shareTarget.result
+          parsed = typeof raw === 'string' ? JSON.parse(raw) : (raw as ExperimentResult)
+        } catch {
+          parsed = { verdict: 'inconclusive', verdictLabel: 'Inconclusive', summary: 'Analysis complete', beforeHighlight: '', duringHighlight: '', recommendation: '' }
+        }
+        const verdict = parsed?.verdict || 'inconclusive'
+        const verdictLabel = parsed?.verdictLabel || 'Inconclusive'
+        const summary = parsed?.summary || 'Analysis complete'
+        const vs = getVerdictStyle(verdict)
         return (
           <div
             onClick={() => setShareTarget(null)}
@@ -937,14 +947,14 @@ export default function ExperimentsPage() {
                   textTransform: 'uppercase', padding: '7px 18px',
                   borderRadius: '100px', border: `1px solid ${vs.border}`,
                 }}>
-                  {vs.icon} {result.verdictLabel}
+                  {vs.icon} {verdictLabel}
                 </span>
               </div>
               <p style={{
                 color: '#5a7a6a', fontSize: '0.875rem', lineHeight: 1.65,
                 margin: '0 0 20px', textAlign: 'center',
               }}>
-                {result.summary}
+                {summary}
               </p>
               <div style={{ height: '1px', backgroundColor: '#f0ebe3', marginBottom: '16px' }} />
               <p style={{ color: '#b8b0a4', fontSize: '0.75rem', textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
