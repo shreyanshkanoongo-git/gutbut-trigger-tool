@@ -25,6 +25,17 @@ interface ExperimentResult {
   recommendation: string
 }
 
+interface ExperimentLog {
+  id: string
+  experiment_id: string
+  user_id: string
+  day_number: number
+  note: string
+  mood: string
+  severity: number
+  created_at: string
+}
+
 const VERDICT_STYLES: Record<
   ExperimentResult['verdict'],
   { bg: string; color: string; border: string; icon: string }
@@ -50,62 +61,90 @@ function progressPercent(startDate: string, endDate: string): number {
   return Math.round(((now - start) / (end - start)) * 100)
 }
 
+function totalDays(startDate: string, endDate: string): number {
+  const start = new Date(startDate).getTime()
+  const end = new Date(endDate).getTime()
+  return Math.ceil((end - start) / (1000 * 60 * 60 * 24))
+}
+
+function currentDayNumber(startDate: string): number {
+  const start = new Date(startDate).getTime()
+  const now = Date.now()
+  return Math.max(1, Math.ceil((now - start) / (1000 * 60 * 60 * 24)) + 1)
+}
+
 export default function ExperimentsPage() {
-  const [experiment, setExperiment] = useState<Experiment | null>(null)
+  const [experiments, setExperiments] = useState<Experiment[]>([])
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [analyzingResult, setAnalyzingResult] = useState(false)
-  const [result, setResult] = useState<ExperimentResult | null>(null)
-  const [error, setError] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
   const [userInitial, setUserInitial] = useState('?')
-  const [deleteConfirming, setDeleteConfirming] = useState(false)
-  const [showShare, setShowShare] = useState(false)
-  const [copyDone, setCopyDone] = useState(false)
 
-  function handleCopyLink() {
-    navigator.clipboard.writeText('Check out my gut trigger discovery: gutbut-trigger-tool.vercel.app')
-    setCopyDone(true)
-    setTimeout(() => setCopyDone(false), 2000)
-  }
-
-  // Form state
+  // New experiment form
   const [name, setName] = useState('')
   const [hypothesis, setHypothesis] = useState('')
   const [duration, setDuration] = useState<7 | 14 | 21>(7)
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState('')
 
-  useEffect(() => {
-    loadExperiment()
-  }, [])
+  // Per-experiment state
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null)
+  const [deleteConfirming, setDeleteConfirming] = useState<string | null>(null)
+  const [openLogId, setOpenLogId] = useState<string | null>(null)
 
-  async function loadExperiment() {
+  // Daily log form
+  const [logMood, setLogMood] = useState<'Good' | 'Okay' | 'Bad' | ''>('')
+  const [logSeverity, setLogSeverity] = useState(3)
+  const [logNote, setLogNote] = useState('')
+  const [loggingId, setLoggingId] = useState<string | null>(null)
+
+  // Experiment daily logs keyed by experiment_id
+  const [expLogs, setExpLogs] = useState<Record<string, ExperimentLog[]>>({})
+
+  // Share overlay
+  const [shareTarget, setShareTarget] = useState<{ experiment: Experiment; result: ExperimentResult } | null>(null)
+  const [copyDone, setCopyDone] = useState(false)
+
+  useEffect(() => { loadAll() }, [])
+
+  async function loadAll() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     const uid = user?.id ?? 'anonymous'
     setUserId(uid)
     if (user) setUserInitial((user.email?.[0] ?? '?').toUpperCase())
 
-    const { data, error } = await supabase
+    const { data: exps } = await supabase
       .from('experiments')
       .select('*')
       .eq('user_id', uid)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
 
-    if (!error && data) {
-      setExperiment(data as Experiment)
-      if (data.status === 'completed' && data.result) {
-        try { setResult(JSON.parse(data.result)) } catch { /* ignore */ }
+    const list = (exps ?? []) as Experiment[]
+    setExperiments(list)
+
+    if (list.length > 0) {
+      const ids = list.map(e => e.id)
+      const { data: logs } = await supabase
+        .from('experiment_logs')
+        .select('*')
+        .in('experiment_id', ids)
+        .order('created_at', { ascending: false })
+
+      const grouped: Record<string, ExperimentLog[]> = {}
+      for (const log of (logs ?? []) as ExperimentLog[]) {
+        if (!grouped[log.experiment_id]) grouped[log.experiment_id] = []
+        grouped[log.experiment_id].push(log)
       }
+      setExpLogs(grouped)
     }
+
     setLoading(false)
   }
 
   async function handleStart() {
     if (!name.trim() || !hypothesis.trim()) return
     setSubmitting(true)
-    setError('')
+    setFormError('')
     const start = new Date()
     const end = new Date()
     end.setDate(end.getDate() + duration)
@@ -124,61 +163,84 @@ export default function ExperimentsPage() {
       .single()
 
     setSubmitting(false)
-    if (error) { setError('Could not start experiment. Please try again.'); return }
-    setExperiment(data as Experiment)
+    if (error) { setFormError('Could not start experiment. Please try again.'); return }
+    setExperiments(prev => [data as Experiment, ...prev])
     setName('')
     setHypothesis('')
   }
 
-  async function handleEnd() {
-    if (!experiment) return
-    setAnalyzingResult(true)
-    setError('')
+  async function handleEndExperiment(experiment: Experiment) {
+    setAnalyzingId(experiment.id)
 
-    // Mark end date as today
     const today = new Date().toISOString().split('T')[0]
-    await supabase
-      .from('experiments')
-      .update({ end_date: today })
-      .eq('id', experiment.id)
+    await supabase.from('experiments').update({ end_date: today }).eq('id', experiment.id)
 
-    // Fetch AI verdict
     const res = await fetch(`/api/experiment-result?experimentId=${experiment.id}`)
     const json = await res.json()
-    if (json.error) {
-      setError('Could not analyse experiment. Please try again.')
-      setAnalyzingResult(false)
-      return
-    }
 
-    setResult(json)
-    setExperiment({ ...experiment, status: 'completed', end_date: today, result: JSON.stringify(json) })
-    setAnalyzingResult(false)
+    setExperiments(prev =>
+      prev.map(e =>
+        e.id === experiment.id
+          ? { ...e, status: 'completed', end_date: today, result: JSON.stringify(json) }
+          : e
+      )
+    )
+    setAnalyzingId(null)
   }
 
-  async function handleReset() {
-    setExperiment(null)
-    setResult(null)
-  }
-
-  function handleDeleteClick() {
-    if (!deleteConfirming) {
-      setDeleteConfirming(true)
-      setTimeout(() => setDeleteConfirming(false), 3000)
+  async function handleDeleteClick(experimentId: string) {
+    if (deleteConfirming !== experimentId) {
+      setDeleteConfirming(experimentId)
+      setTimeout(() => setDeleteConfirming(prev => prev === experimentId ? null : prev), 3000)
     } else {
-      handleDeleteConfirmed()
+      await supabase.from('experiments').delete().eq('id', experimentId)
+      setExperiments(prev => prev.filter(e => e.id !== experimentId))
+      setDeleteConfirming(null)
     }
   }
 
-  async function handleDeleteConfirmed() {
-    if (!experiment) return
-    setDeleteConfirming(false)
-    await supabase.from('experiments').delete().eq('id', experiment.id)
-    setExperiment(null)
-    setResult(null)
+  function openLogForm(experimentId: string) {
+    setOpenLogId(experimentId)
+    setLogMood('')
+    setLogSeverity(3)
+    setLogNote('')
   }
 
-  const isExpired = experiment?.status === 'active' && daysRemaining(experiment.end_date) === 0
+  async function handleSaveLog(experiment: Experiment) {
+    if (!userId) return
+    setLoggingId(experiment.id)
+
+    const { data, error } = await supabase
+      .from('experiment_logs')
+      .insert({
+        experiment_id: experiment.id,
+        user_id: userId,
+        day_number: currentDayNumber(experiment.start_date),
+        note: logNote.trim(),
+        mood: logMood || 'Okay',
+        severity: logSeverity,
+      })
+      .select()
+      .single()
+
+    setLoggingId(null)
+    if (!error && data) {
+      setExpLogs(prev => ({
+        ...prev,
+        [experiment.id]: [data as ExperimentLog, ...(prev[experiment.id] ?? [])],
+      }))
+    }
+    setOpenLogId(null)
+  }
+
+  function handleCopyLink() {
+    navigator.clipboard.writeText('Check out my gut trigger discovery: gutbut-trigger-tool.vercel.app')
+    setCopyDone(true)
+    setTimeout(() => setCopyDone(false), 2000)
+  }
+
+  const activeExps = experiments.filter(e => e.status === 'active')
+  const completedExps = experiments.filter(e => e.status === 'completed')
 
   return (
     <>
@@ -205,6 +267,11 @@ export default function ExperimentsPage() {
         .danger-btn:hover { background-color: #fff0ee !important; border-color: #fdd5cc !important; }
         .delete-btn { transition: color 0.15s ease, border-color 0.15s ease; }
         .delete-btn:hover { color: #c0392b !important; border-color: #fdd5cc !important; }
+        .log-btn { transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
+        .log-btn:hover { background-color: #1e4d35 !important; color: #f5f0e8 !important; border-color: #1e4d35 !important; }
+        .share-btn { transition: background-color 0.18s ease, color 0.18s ease; }
+        .share-btn:hover { background-color: #1e4d35 !important; color: #f5f0e8 !important; }
+        .duration-btn { transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease; }
         textarea, input[type="text"] {
           outline: none;
           transition: border-color 0.2s ease, background-color 0.2s ease;
@@ -213,14 +280,37 @@ export default function ExperimentsPage() {
           border-color: #1e4d35 !important;
           background-color: #ffffff !important;
         }
-        .duration-btn { transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease; }
-
-        .share-btn { transition: background-color 0.18s ease, color 0.18s ease; }
-        .share-btn:hover { background-color: #1e4d35 !important; color: #f5f0e8 !important; }
+        input[type="range"] {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          height: 4px;
+          background: #e4ddd2;
+          border-radius: 2px;
+          outline: none;
+          cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 20px; height: 20px;
+          border-radius: 50%;
+          background: #1e4d35;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(30,77,53,0.25);
+        }
+        input[type="range"]::-moz-range-thumb {
+          width: 20px; height: 20px;
+          border-radius: 50%;
+          background: #1e4d35;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 8px rgba(30,77,53,0.25);
+        }
         .overlay-copy-btn { transition: background-color 0.2s ease, transform 0.15s ease; }
         .overlay-copy-btn:hover { background-color: #163b28 !important; }
         .overlay-copy-btn:active { transform: scale(0.98); }
-        .overlay-close-btn { transition: background-color 0.15s ease, color 0.15s ease; }
+        .overlay-close-btn { transition: background-color 0.15s ease; }
         .overlay-close-btn:hover { background-color: rgba(255,255,255,0.12) !important; }
 
         @media (max-width: 640px) {
@@ -239,29 +329,17 @@ export default function ExperimentsPage() {
         <div className="w-full max-w-md mb-10 fade-in-up">
           <div className="exp-header flex items-start justify-between">
             <div className="exp-header-left">
-              <h1
-                style={{
-                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                  color: '#1e4d35',
-                  fontSize: '2.25rem',
-                  fontWeight: 600,
-                  letterSpacing: '-0.01em',
-                  lineHeight: 1.15,
-                  margin: 0,
-                }}
-              >
+              <h1 style={{
+                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                color: '#1e4d35', fontSize: '2.25rem', fontWeight: 600,
+                letterSpacing: '-0.01em', lineHeight: 1.15, margin: 0,
+              }}>
                 Experiments
               </h1>
-              <p
-                style={{
-                  color: '#7a9185',
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  marginTop: '5px',
-                  fontWeight: 400,
-                }}
-              >
+              <p style={{
+                color: '#7a9185', fontSize: '0.75rem', letterSpacing: '0.14em',
+                textTransform: 'uppercase', marginTop: '5px', fontWeight: 400,
+              }}>
                 Test your triggers
               </p>
             </div>
@@ -270,16 +348,11 @@ export default function ExperimentsPage() {
                 <button
                   className="nav-btn"
                   style={{
-                    backgroundColor: 'transparent',
-                    color: '#1e4d35',
-                    fontSize: '0.8125rem',
-                    letterSpacing: '0.04em',
-                    padding: '10px 22px',
-                    borderRadius: '100px',
-                    border: '1px solid #c8bfb0',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontWeight: 500,
+                    backgroundColor: 'transparent', color: '#1e4d35',
+                    fontSize: '0.8125rem', letterSpacing: '0.04em',
+                    padding: '10px 22px', borderRadius: '100px',
+                    border: '1px solid #c8bfb0', cursor: 'pointer',
+                    fontFamily: 'inherit', fontWeight: 500,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = '#1e4d35'
@@ -298,20 +371,12 @@ export default function ExperimentsPage() {
               <Link href="/profile">
                 <div
                   style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    backgroundColor: '#1e4d35',
-                    color: '#f5f0e8',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
+                    width: '36px', height: '36px', borderRadius: '50%',
+                    backgroundColor: '#1e4d35', color: '#f5f0e8',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
                     fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                    boxShadow: '0 2px 10px rgba(30,77,53,0.18)',
-                    flexShrink: 0,
+                    boxShadow: '0 2px 10px rgba(30,77,53,0.18)', flexShrink: 0,
                   }}
                   title="View profile"
                 >
@@ -332,765 +397,560 @@ export default function ExperimentsPage() {
           </div>
         )}
 
-        {/* ── Analysing ── */}
-        {analyzingResult && (
-          <div
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: '22px', marginTop: '64px',
-            }}
-          >
-            <div style={{ display: 'flex', gap: '9px' }}>
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="dot" style={{ animationDelay: `${i * 0.22}s` }} />
-              ))}
-            </div>
-            <p style={{ color: '#9aada5', fontSize: '0.875rem', letterSpacing: '0.04em' }}>
-              Analysing your experiment...
-            </p>
-          </div>
-        )}
+        {!loading && (
+          <div className="w-full max-w-md fade-in-up">
 
-        {!loading && !analyzingResult && (
-          <>
-            {/* ── Error ── */}
-            {error && (
-              <div
-                className="w-full max-w-md mb-6"
-                style={{
-                  backgroundColor: '#fff8f6', borderRadius: '16px',
-                  padding: '16px 20px', border: '1px solid #fdd5cc',
-                }}
-              >
-                <p style={{ color: '#c0392b', fontSize: '0.875rem', margin: 0 }}>{error}</p>
-              </div>
-            )}
+            {/* ══ ACTIVE EXPERIMENTS ══ */}
+            {activeExps.length > 0 && (
+              <div style={{ marginBottom: '32px' }}>
+                <p style={{
+                  color: '#7a9185', fontSize: '0.7rem', fontWeight: 700,
+                  letterSpacing: '0.14em', textTransform: 'uppercase', margin: '0 0 14px',
+                }}>
+                  Active · {activeExps.length}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {activeExps.map((exp) => {
+                    const logs = expLogs[exp.id] ?? []
+                    const lastLog = logs[0]
+                    const total = totalDays(exp.start_date, exp.end_date)
+                    const isAnalyzing = analyzingId === exp.id
+                    const isLogOpen = openLogId === exp.id
+                    const isConfirmingDelete = deleteConfirming === exp.id
 
-            {/* ══ EMPTY STATE — Start Experiment ══ */}
-            {!experiment && (
-              <div className="w-full max-w-md fade-in-up">
-                {/* Explainer */}
-                <div
-                  style={{
-                    backgroundColor: '#edf5f0',
-                    borderRadius: '18px',
-                    padding: '20px 22px',
-                    marginBottom: '28px',
-                    border: '1px solid #c8ddd0',
-                  }}
-                >
-                  <p
-                    style={{
-                      color: '#1e4d35',
-                      fontSize: '0.875rem',
-                      lineHeight: 1.65,
-                      margin: 0,
-                    }}
-                  >
-                    <strong>How it works:</strong> Pick something to test — like cutting out dairy, or taking a probiotic — and track it for 7–21 days. At the end, AI compares your symptoms before and during to give you a verdict.
-                  </p>
-                </div>
-
-                {/* Form card */}
-                <div
-                  style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '26px',
-                    padding: '32px',
-                    border: '1px solid #e4ddd2',
-                    boxShadow: '0 6px 30px rgba(30,77,53,0.07)',
-                  }}
-                >
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                      color: '#1e4d35',
-                      fontSize: '1.375rem',
-                      fontWeight: 600,
-                      margin: '0 0 24px',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    Start an Experiment
-                  </h2>
-
-                  {/* Name */}
-                  <label
-                    style={{ color: '#7a9185', fontSize: '0.8rem', fontWeight: 500, display: 'block', marginBottom: '8px' }}
-                  >
-                    Experiment name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Cut out dairy for 2 weeks"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    style={{
-                      width: '100%',
-                      border: '1px solid #e4ddd2',
-                      borderRadius: '14px',
-                      padding: '13px 16px',
-                      fontSize: '0.9rem',
-                      marginBottom: '20px',
-                      fontFamily: 'inherit',
-                      color: '#1e4d35',
-                      backgroundColor: '#faf8f4',
-                      boxSizing: 'border-box',
-                      display: 'block',
-                    }}
-                  />
-
-                  {/* Hypothesis */}
-                  <label
-                    style={{ color: '#7a9185', fontSize: '0.8rem', fontWeight: 500, display: 'block', marginBottom: '8px' }}
-                  >
-                    What are you testing?
-                  </label>
-                  <textarea
-                    placeholder="e.g. I think dairy is causing my bloating. I'll avoid it completely and see if symptoms improve."
-                    value={hypothesis}
-                    onChange={(e) => setHypothesis(e.target.value)}
-                    rows={3}
-                    style={{
-                      width: '100%',
-                      border: '1px solid #e4ddd2',
-                      borderRadius: '14px',
-                      padding: '13px 16px',
-                      fontSize: '0.9rem',
-                      marginBottom: '20px',
-                      fontFamily: 'inherit',
-                      color: '#1e4d35',
-                      backgroundColor: '#faf8f4',
-                      resize: 'none',
-                      boxSizing: 'border-box',
-                      lineHeight: 1.65,
-                      display: 'block',
-                    }}
-                  />
-
-                  {/* Duration */}
-                  <label
-                    style={{ color: '#7a9185', fontSize: '0.8rem', fontWeight: 500, display: 'block', marginBottom: '10px' }}
-                  >
-                    Duration
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '28px' }}>
-                    {([7, 14, 21] as const).map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setDuration(d)}
-                        className="duration-btn"
-                        style={{
-                          flex: 1,
-                          padding: '10px 0',
-                          borderRadius: '100px',
-                          border: duration === d ? '1px solid #1e4d35' : '1px solid #d0c9bf',
-                          backgroundColor: duration === d ? '#1e4d35' : 'transparent',
-                          color: duration === d ? '#f5f0e8' : '#7a9185',
-                          fontSize: '0.8rem',
-                          fontWeight: duration === d ? 600 : 400,
-                          fontFamily: 'inherit',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {d} days
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={handleStart}
-                    disabled={submitting || !name.trim() || !hypothesis.trim()}
-                    className="primary-btn"
-                    style={{
-                      width: '100%',
-                      backgroundColor: submitting || !name.trim() || !hypothesis.trim() ? '#8eb8a3' : '#1e4d35',
-                      color: '#f5f0e8',
-                      borderRadius: '14px',
-                      padding: '15px',
-                      fontSize: '0.9375rem',
-                      fontWeight: 600,
-                      border: 'none',
-                      cursor: submitting || !name.trim() || !hypothesis.trim() ? 'not-allowed' : 'pointer',
-                      fontFamily: 'inherit',
-                      letterSpacing: '0.02em',
-                    }}
-                  >
-                    {submitting ? 'Starting...' : 'Start Experiment →'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ══ ACTIVE STATE ══ */}
-            {experiment && experiment.status === 'active' && !isExpired && (
-              <div className="w-full max-w-md fade-in-up">
-                {/* Status badge */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-                  <span
-                    style={{
-                      backgroundColor: '#edf5f0',
-                      color: '#1e4d35',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.14em',
-                      textTransform: 'uppercase',
-                      padding: '6px 16px',
-                      borderRadius: '100px',
-                      border: '1px solid #c8ddd0',
-                    }}
-                  >
-                    ● Experiment Running
-                  </span>
-                </div>
-
-                {/* Main card */}
-                <div
-                  style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '26px',
-                    padding: '32px',
-                    border: '1px solid #e4ddd2',
-                    boxShadow: '0 6px 30px rgba(30,77,53,0.07)',
-                    marginBottom: '16px',
-                  }}
-                >
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                      color: '#1e4d35',
-                      fontSize: '1.375rem',
-                      fontWeight: 600,
-                      margin: '0 0 6px',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {experiment.name}
-                  </h2>
-                  <p style={{ color: '#9aada5', fontSize: '0.8375rem', lineHeight: 1.6, margin: '0 0 28px' }}>
-                    {experiment.hypothesis}
-                  </p>
-
-                  {/* Days remaining */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
-                    <span style={{ color: '#7a9185', fontSize: '0.8125rem', fontWeight: 500 }}>Progress</span>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                        color: '#1e4d35',
-                        fontSize: '1.5rem',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {daysRemaining(experiment.end_date)}
-                      <span style={{ fontSize: '0.9rem', fontWeight: 400, color: '#9aada5', marginLeft: '4px' }}>
-                        days left
-                      </span>
-                    </span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '8px',
-                      backgroundColor: '#e8f0eb',
-                      borderRadius: '4px',
-                      marginBottom: '28px',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${progressPercent(experiment.start_date, experiment.end_date)}%`,
-                        backgroundColor: '#1e4d35',
-                        borderRadius: '4px',
-                        transition: 'width 0.6s ease',
-                      }}
-                    />
-                  </div>
-
-                  {/* Dates */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '28px',
-                      paddingBottom: '24px',
-                      borderBottom: '1px solid #f0ebe3',
-                    }}
-                  >
-                    <div>
-                      <p style={{ color: '#b8b0a4', fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 3px' }}>
-                        Started
-                      </p>
-                      <p style={{ color: '#1e4d35', fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>
-                        {new Date(experiment.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                      </p>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <p style={{ color: '#b8b0a4', fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 3px' }}>
-                        Ends
-                      </p>
-                      <p style={{ color: '#1e4d35', fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>
-                        {new Date(experiment.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p style={{ color: '#9aada5', fontSize: '0.8125rem', lineHeight: 1.6, margin: '0 0 20px', textAlign: 'center' }}>
-                    Keep logging meals, symptoms and supplements as normal while the experiment runs.
-                  </p>
-
-                  <button
-                    onClick={handleEnd}
-                    className="danger-btn"
-                    style={{
-                      width: '100%',
-                      backgroundColor: 'transparent',
-                      color: '#c0392b',
-                      borderRadius: '14px',
-                      padding: '13px',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                      border: '1px solid #fdd5cc',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    End experiment &amp; get verdict
-                  </button>
-                  <button
-                    onClick={handleDeleteClick}
-                    className="delete-btn"
-                    style={{
-                      width: '100%',
-                      marginTop: '10px',
-                      backgroundColor: 'transparent',
-                      color: deleteConfirming ? '#c0392b' : '#c0a8a0',
-                      borderRadius: '14px',
-                      padding: '11px',
-                      fontSize: '0.8125rem',
-                      fontWeight: 500,
-                      border: `1px solid ${deleteConfirming ? '#fdd5cc' : '#e8e0d8'}`,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      transition: 'color 0.15s ease, border-color 0.15s ease',
-                    }}
-                  >
-                    {deleteConfirming ? 'Are you sure? Click again to delete' : 'Delete Experiment'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ══ EXPIRED — can end ══ */}
-            {experiment && experiment.status === 'active' && isExpired && (
-              <div className="w-full max-w-md fade-in-up">
-                <div
-                  style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '26px',
-                    padding: '32px',
-                    border: '1px solid #e4ddd2',
-                    boxShadow: '0 6px 30px rgba(30,77,53,0.07)',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '60px', height: '60px', borderRadius: '50%',
-                      backgroundColor: '#edf5f0', display: 'flex',
-                      alignItems: 'center', justifyContent: 'center',
-                      margin: '0 auto 20px',
-                    }}
-                  >
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1e4d35" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                  </div>
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                      color: '#1e4d35', fontSize: '1.375rem',
-                      fontWeight: 600, margin: '0 0 10px',
-                    }}
-                  >
-                    {experiment.name}
-                  </h2>
-                  <p style={{ color: '#9aada5', fontSize: '0.875rem', lineHeight: 1.65, margin: '0 0 28px' }}>
-                    Your experiment period is complete. Ready to see the verdict?
-                  </p>
-                  <button
-                    onClick={handleEnd}
-                    className="primary-btn"
-                    style={{
-                      width: '100%',
-                      backgroundColor: '#1e4d35',
-                      color: '#f5f0e8',
-                      borderRadius: '14px',
-                      padding: '15px',
-                      fontSize: '0.9375rem',
-                      fontWeight: 600,
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      letterSpacing: '0.02em',
-                    }}
-                  >
-                    Get AI Verdict →
-                  </button>
-                  <button
-                    onClick={handleDeleteClick}
-                    className="delete-btn"
-                    style={{
-                      width: '100%',
-                      marginTop: '10px',
-                      backgroundColor: 'transparent',
-                      color: deleteConfirming ? '#c0392b' : '#c0a8a0',
-                      borderRadius: '14px',
-                      padding: '11px',
-                      fontSize: '0.8125rem',
-                      fontWeight: 500,
-                      border: `1px solid ${deleteConfirming ? '#fdd5cc' : '#e8e0d8'}`,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      transition: 'color 0.15s ease, border-color 0.15s ease',
-                    }}
-                  >
-                    {deleteConfirming ? 'Are you sure? Click again to delete' : 'Delete Experiment'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ══ COMPLETED STATE ══ */}
-            {experiment && experiment.status === 'completed' && result && (
-              <div className="w-full max-w-md fade-in-up">
-                {/* Verdict badge */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-                  {(() => {
-                    const vs = VERDICT_STYLES[result.verdict]
                     return (
-                      <span
+                      <div
+                        key={exp.id}
                         style={{
-                          backgroundColor: vs.bg,
-                          color: vs.color,
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          letterSpacing: '0.1em',
-                          textTransform: 'uppercase',
-                          padding: '8px 20px',
-                          borderRadius: '100px',
-                          border: `1px solid ${vs.border}`,
+                          backgroundColor: '#ffffff',
+                          borderRadius: '22px',
+                          border: '1px solid #e4ddd2',
+                          borderLeft: '4px solid #1e4d35',
+                          boxShadow: '0 4px 20px rgba(30,77,53,0.07)',
+                          overflow: 'hidden',
                         }}
                       >
-                        {vs.icon} {result.verdictLabel}
-                      </span>
+                        {isAnalyzing ? (
+                          <div style={{
+                            padding: '36px', display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', gap: '16px',
+                          }}>
+                            <div style={{ display: 'flex', gap: '9px' }}>
+                              {[0, 1, 2].map(i => (
+                                <div key={i} className="dot" style={{ animationDelay: `${i * 0.22}s` }} />
+                              ))}
+                            </div>
+                            <p style={{ color: '#9aada5', fontSize: '0.875rem', margin: 0 }}>
+                              Analysing your experiment...
+                            </p>
+                          </div>
+                        ) : (
+                          <div style={{ padding: '24px' }}>
+                            {/* Name + Active badge */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+                              <h3 style={{
+                                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                                color: '#1e4d35', fontSize: '1.125rem', fontWeight: 600,
+                                margin: 0, lineHeight: 1.25, flex: 1, paddingRight: '12px',
+                              }}>
+                                {exp.name}
+                              </h3>
+                              <span style={{
+                                backgroundColor: '#edf5f0', color: '#1e4d35',
+                                fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em',
+                                textTransform: 'uppercase', padding: '4px 12px',
+                                borderRadius: '100px', border: '1px solid #c8ddd0',
+                                flexShrink: 0,
+                              }}>
+                                Active
+                              </span>
+                            </div>
+
+                            {/* Progress */}
+                            <div style={{ marginBottom: '14px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '7px' }}>
+                                <span style={{ color: '#9aada5', fontSize: '0.75rem' }}>Progress</span>
+                                <span style={{ color: '#1e4d35', fontSize: '0.75rem', fontWeight: 600 }}>
+                                  {daysRemaining(exp.end_date)} days left
+                                </span>
+                              </div>
+                              <div style={{
+                                width: '100%', height: '6px', backgroundColor: '#e8f0eb',
+                                borderRadius: '3px', overflow: 'hidden',
+                              }}>
+                                <div style={{
+                                  height: '100%',
+                                  width: `${progressPercent(exp.start_date, exp.end_date)}%`,
+                                  backgroundColor: '#1e4d35', borderRadius: '3px',
+                                  transition: 'width 0.6s ease',
+                                }} />
+                              </div>
+                            </div>
+
+                            {/* Log summary */}
+                            <div style={{
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              paddingTop: '12px', borderTop: '1px solid #f0ebe3', marginBottom: '16px',
+                            }}>
+                              <span style={{ color: '#9aada5', fontSize: '0.78rem' }}>
+                                {logs.length} of {total} days logged
+                              </span>
+                              {lastLog && (
+                                <span style={{ color: '#7a9185', fontSize: '0.78rem' }}>
+                                  Last: {lastLog.mood} · {lastLog.severity}/5
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Log today — button or inline form */}
+                            {!isLogOpen ? (
+                              <button
+                                onClick={() => openLogForm(exp.id)}
+                                className="log-btn"
+                                style={{
+                                  width: '100%', backgroundColor: 'transparent',
+                                  color: '#1e4d35', borderRadius: '100px',
+                                  padding: '11px', fontSize: '0.875rem', fontWeight: 500,
+                                  border: '1px solid #1e4d35', cursor: 'pointer',
+                                  fontFamily: 'inherit', marginBottom: '10px',
+                                  letterSpacing: '0.01em',
+                                }}
+                              >
+                                + Log Today's Entry
+                              </button>
+                            ) : (
+                              <div style={{
+                                backgroundColor: '#faf8f4', borderRadius: '16px',
+                                padding: '20px', marginBottom: '10px',
+                                border: '1px solid #e4ddd2',
+                              }}>
+                                {/* Mood */}
+                                <p style={{ color: '#7a9185', fontSize: '0.78rem', fontWeight: 600, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                  How are you feeling?
+                                </p>
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
+                                  {(['Good', 'Okay', 'Bad'] as const).map(m => (
+                                    <button
+                                      key={m}
+                                      onClick={() => setLogMood(m)}
+                                      style={{
+                                        flex: 1, padding: '9px 0',
+                                        borderRadius: '100px', fontFamily: 'inherit',
+                                        fontSize: '0.8125rem', fontWeight: logMood === m ? 600 : 400,
+                                        cursor: 'pointer',
+                                        backgroundColor: logMood === m ? '#1e4d35' : 'transparent',
+                                        color: logMood === m ? '#f5f0e8' : '#7a9185',
+                                        border: logMood === m ? '1px solid #1e4d35' : '1px solid #d6cfc4',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                    >
+                                      {m === 'Good' ? '😊' : m === 'Okay' ? '😐' : '😔'} {m}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                {/* Severity */}
+                                <p style={{ color: '#7a9185', fontSize: '0.78rem', fontWeight: 600, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                  Symptom severity:{' '}
+                                  <span style={{ color: '#1e4d35', fontFamily: "var(--font-playfair, 'Playfair Display', serif)", fontSize: '1rem' }}>
+                                    {logSeverity}/5
+                                  </span>
+                                </p>
+                                <input
+                                  type="range"
+                                  min={1} max={5} step={1}
+                                  value={logSeverity}
+                                  onChange={(e) => setLogSeverity(Number(e.target.value))}
+                                  style={{ marginBottom: '18px' }}
+                                />
+
+                                {/* Note */}
+                                <p style={{ color: '#7a9185', fontSize: '0.78rem', fontWeight: 600, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                  What did you notice today?
+                                </p>
+                                <textarea
+                                  placeholder="Any symptoms, changes, or observations..."
+                                  value={logNote}
+                                  onChange={(e) => setLogNote(e.target.value)}
+                                  rows={2}
+                                  style={{
+                                    width: '100%', border: '1px solid #e4ddd2',
+                                    borderRadius: '12px', padding: '11px 14px',
+                                    fontSize: '0.875rem', fontFamily: 'inherit',
+                                    color: '#1e4d35', backgroundColor: '#ffffff',
+                                    resize: 'none', boxSizing: 'border-box',
+                                    lineHeight: 1.6, display: 'block', marginBottom: '14px',
+                                  }}
+                                />
+
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <button
+                                    onClick={() => setOpenLogId(null)}
+                                    style={{
+                                      flex: 1, backgroundColor: 'transparent', color: '#9aada5',
+                                      borderRadius: '100px', padding: '10px', fontSize: '0.8125rem',
+                                      fontWeight: 500, border: '1px solid #d6cfc4',
+                                      cursor: 'pointer', fontFamily: 'inherit',
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleSaveLog(exp)}
+                                    disabled={loggingId === exp.id}
+                                    className="primary-btn"
+                                    style={{
+                                      flex: 2,
+                                      backgroundColor: loggingId === exp.id ? '#8eb8a3' : '#1e4d35',
+                                      color: '#f5f0e8', borderRadius: '100px',
+                                      padding: '10px', fontSize: '0.8125rem',
+                                      fontWeight: 600, border: 'none',
+                                      cursor: loggingId === exp.id ? 'not-allowed' : 'pointer',
+                                      fontFamily: 'inherit',
+                                    }}
+                                  >
+                                    {loggingId === exp.id ? 'Saving...' : 'Save Entry'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* End & get verdict */}
+                            <button
+                              onClick={() => handleEndExperiment(exp)}
+                              className="danger-btn"
+                              style={{
+                                width: '100%', backgroundColor: 'transparent',
+                                color: '#c0392b', borderRadius: '14px',
+                                padding: '11px', fontSize: '0.8125rem', fontWeight: 500,
+                                border: '1px solid #fdd5cc', cursor: 'pointer',
+                                fontFamily: 'inherit', marginBottom: '8px',
+                              }}
+                            >
+                              End &amp; Get Verdict
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteClick(exp.id)}
+                              className="delete-btn"
+                              style={{
+                                width: '100%', backgroundColor: 'transparent',
+                                color: isConfirmingDelete ? '#c0392b' : '#c0a8a0',
+                                borderRadius: '14px', padding: '9px',
+                                fontSize: '0.8rem', fontWeight: 500,
+                                border: `1px solid ${isConfirmingDelete ? '#fdd5cc' : '#e8e0d8'}`,
+                                cursor: 'pointer', fontFamily: 'inherit',
+                                transition: 'color 0.15s ease, border-color 0.15s ease',
+                              }}
+                            >
+                              {isConfirmingDelete ? 'Are you sure? Click again to delete' : 'Delete'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )
-                  })()}
+                  })}
                 </div>
+              </div>
+            )}
 
-                {/* Main result card */}
-                <div
+            {/* ══ COMPLETED EXPERIMENTS ══ */}
+            {completedExps.length > 0 && (
+              <div style={{ marginBottom: '32px' }}>
+                <p style={{
+                  color: '#7a9185', fontSize: '0.7rem', fontWeight: 700,
+                  letterSpacing: '0.14em', textTransform: 'uppercase', margin: '0 0 14px',
+                }}>
+                  Completed · {completedExps.length}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {completedExps.map((exp) => {
+                    let result: ExperimentResult | null = null
+                    try { result = exp.result ? JSON.parse(exp.result) : null } catch { /* ignore */ }
+                    const vs = result ? VERDICT_STYLES[result.verdict] : null
+                    const isConfirmingDelete = deleteConfirming === exp.id
+
+                    return (
+                      <div
+                        key={exp.id}
+                        style={{
+                          backgroundColor: '#ffffff', borderRadius: '22px',
+                          border: '1px solid #e4ddd2',
+                          boxShadow: '0 4px 20px rgba(30,77,53,0.05)',
+                          padding: '24px',
+                        }}
+                      >
+                        {/* Name + verdict badge */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <h3 style={{
+                            fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                            color: '#1e4d35', fontSize: '1.125rem', fontWeight: 600,
+                            margin: 0, lineHeight: 1.25, flex: 1, paddingRight: '12px',
+                          }}>
+                            {exp.name}
+                          </h3>
+                          {vs && result && (
+                            <span style={{
+                              backgroundColor: vs.bg, color: vs.color,
+                              fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em',
+                              textTransform: 'uppercase', padding: '4px 12px',
+                              borderRadius: '100px', border: `1px solid ${vs.border}`,
+                              flexShrink: 0,
+                            }}>
+                              {vs.icon} {result.verdictLabel}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Summary */}
+                        {result && (
+                          <p style={{ color: '#7a9185', fontSize: '0.8375rem', lineHeight: 1.6, margin: '0 0 12px' }}>
+                            {result.summary}
+                          </p>
+                        )}
+
+                        {/* Dates */}
+                        <p style={{ color: '#b8b0a4', fontSize: '0.75rem', margin: '0 0 16px' }}>
+                          {new Date(exp.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          {' – '}
+                          {new Date(exp.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+
+                        {result && (
+                          <button
+                            onClick={() => setShareTarget({ experiment: exp, result })}
+                            className="share-btn"
+                            style={{
+                              width: '100%', backgroundColor: 'transparent', color: '#1e4d35',
+                              borderRadius: '100px', padding: '11px', fontSize: '0.875rem',
+                              fontWeight: 500, border: '1px solid #1e4d35',
+                              cursor: 'pointer', fontFamily: 'inherit', marginBottom: '8px',
+                              letterSpacing: '0.01em',
+                            }}
+                          >
+                            Share Result ↗
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleDeleteClick(exp.id)}
+                          className="delete-btn"
+                          style={{
+                            width: '100%', backgroundColor: 'transparent',
+                            color: isConfirmingDelete ? '#c0392b' : '#c0a8a0',
+                            borderRadius: '14px', padding: '9px',
+                            fontSize: '0.8rem', fontWeight: 500,
+                            border: `1px solid ${isConfirmingDelete ? '#fdd5cc' : '#e8e0d8'}`,
+                            cursor: 'pointer', fontFamily: 'inherit',
+                            transition: 'color 0.15s ease, border-color 0.15s ease',
+                          }}
+                        >
+                          {isConfirmingDelete ? 'Are you sure? Click again to delete' : 'Delete'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ══ EMPTY STATE howto ══ */}
+            {experiments.length === 0 && (
+              <div style={{
+                backgroundColor: '#edf5f0', borderRadius: '18px',
+                padding: '20px 22px', marginBottom: '28px',
+                border: '1px solid #c8ddd0',
+              }}>
+                <p style={{ color: '#1e4d35', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>
+                  <strong>How it works:</strong> Pick something to test — like cutting out dairy, or taking a probiotic — and track it for 7–21 days. Log a daily entry each day, then at the end AI compares your symptoms before and during to give you a verdict.
+                </p>
+              </div>
+            )}
+
+            {/* ══ START NEW EXPERIMENT ══ */}
+            <div>
+              {experiments.length > 0 && (
+                <p style={{
+                  color: '#7a9185', fontSize: '0.7rem', fontWeight: 700,
+                  letterSpacing: '0.14em', textTransform: 'uppercase', margin: '0 0 14px',
+                }}>
+                  Start New
+                </p>
+              )}
+              <div style={{
+                backgroundColor: '#ffffff', borderRadius: '26px', padding: '32px',
+                border: '1px solid #e4ddd2', boxShadow: '0 6px 30px rgba(30,77,53,0.07)',
+              }}>
+                <h2 style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35', fontSize: '1.375rem', fontWeight: 600,
+                  margin: '0 0 24px', lineHeight: 1.2,
+                }}>
+                  {experiments.length === 0 ? 'Start an Experiment' : 'New Experiment'}
+                </h2>
+
+                {formError && (
+                  <div style={{
+                    backgroundColor: '#fff8f6', borderRadius: '12px',
+                    padding: '12px 16px', border: '1px solid #fdd5cc', marginBottom: '20px',
+                  }}>
+                    <p style={{ color: '#c0392b', fontSize: '0.8375rem', margin: 0 }}>{formError}</p>
+                  </div>
+                )}
+
+                <label style={{ color: '#7a9185', fontSize: '0.8rem', fontWeight: 500, display: 'block', marginBottom: '8px' }}>
+                  Experiment name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Cut out dairy for 2 weeks"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '26px',
-                    padding: '32px',
-                    border: '1px solid #e4ddd2',
-                    boxShadow: '0 6px 30px rgba(30,77,53,0.07)',
-                    marginBottom: '16px',
+                    width: '100%', border: '1px solid #e4ddd2', borderRadius: '14px',
+                    padding: '13px 16px', fontSize: '0.9rem', marginBottom: '20px',
+                    fontFamily: 'inherit', color: '#1e4d35', backgroundColor: '#faf8f4',
+                    boxSizing: 'border-box', display: 'block',
                   }}
-                >
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                      color: '#1e4d35',
-                      fontSize: '1.375rem',
-                      fontWeight: 600,
-                      margin: '0 0 16px',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {experiment.name}
-                  </h2>
+                />
 
-                  <p style={{ color: '#2c3e30', fontSize: '0.9375rem', lineHeight: 1.7, margin: '0 0 24px' }}>
-                    {result.summary}
-                  </p>
+                <label style={{ color: '#7a9185', fontSize: '0.8rem', fontWeight: 500, display: 'block', marginBottom: '8px' }}>
+                  What are you testing?
+                </label>
+                <textarea
+                  placeholder="e.g. I think dairy is causing my bloating. I'll avoid it completely and see if symptoms improve."
+                  value={hypothesis}
+                  onChange={(e) => setHypothesis(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%', border: '1px solid #e4ddd2', borderRadius: '14px',
+                    padding: '13px 16px', fontSize: '0.9rem', marginBottom: '20px',
+                    fontFamily: 'inherit', color: '#1e4d35', backgroundColor: '#faf8f4',
+                    resize: 'none', boxSizing: 'border-box', lineHeight: 1.65, display: 'block',
+                  }}
+                />
 
-                  {/* Before / During comparison */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '12px',
-                      marginBottom: '24px',
-                    }}
-                  >
-                    <div
+                <label style={{ color: '#7a9185', fontSize: '0.8rem', fontWeight: 500, display: 'block', marginBottom: '10px' }}>
+                  Duration
+                </label>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '28px' }}>
+                  {([7, 14, 21] as const).map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDuration(d)}
+                      className="duration-btn"
                       style={{
-                        backgroundColor: '#faf8f4',
-                        borderRadius: '16px',
-                        padding: '16px',
-                        border: '1px solid #e4ddd2',
+                        flex: 1, padding: '10px 0', borderRadius: '100px',
+                        border: duration === d ? '1px solid #1e4d35' : '1px solid #d0c9bf',
+                        backgroundColor: duration === d ? '#1e4d35' : 'transparent',
+                        color: duration === d ? '#f5f0e8' : '#7a9185',
+                        fontSize: '0.8rem', fontWeight: duration === d ? 600 : 400,
+                        fontFamily: 'inherit', cursor: 'pointer',
                       }}
                     >
-                      <p style={{ color: '#b8b0a4', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 8px' }}>
-                        Before
-                      </p>
-                      <p style={{ color: '#5a7a6a', fontSize: '0.8125rem', lineHeight: 1.6, margin: 0 }}>
-                        {result.beforeHighlight}
-                      </p>
-                    </div>
-                    <div
-                      style={{
-                        backgroundColor: '#faf8f4',
-                        borderRadius: '16px',
-                        padding: '16px',
-                        border: '1px solid #e4ddd2',
-                      }}
-                    >
-                      <p style={{ color: '#b8b0a4', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 8px' }}>
-                        During
-                      </p>
-                      <p style={{ color: '#5a7a6a', fontSize: '0.8125rem', lineHeight: 1.6, margin: 0 }}>
-                        {result.duringHighlight}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Recommendation */}
-                  <div
-                    style={{
-                      backgroundColor: '#edf5f0',
-                      borderRadius: '14px',
-                      padding: '16px 18px',
-                      border: '1px solid #c8ddd0',
-                    }}
-                  >
-                    <p style={{ color: '#5a7a6a', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 6px' }}>
-                      Next step
-                    </p>
-                    <p style={{ color: '#1e4d35', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>
-                      {result.recommendation}
-                    </p>
-                  </div>
+                      {d} days
+                    </button>
+                  ))}
                 </div>
 
-                {/* Share Result */}
                 <button
-                  onClick={() => setShowShare(true)}
-                  className="share-btn"
-                  style={{
-                    width: '100%',
-                    backgroundColor: 'transparent',
-                    color: '#1e4d35',
-                    borderRadius: '100px',
-                    padding: '13px',
-                    fontSize: '0.9375rem',
-                    fontWeight: 500,
-                    border: '1px solid #1e4d35',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    letterSpacing: '0.02em',
-                    marginBottom: '12px',
-                  }}
-                >
-                  Share Result ↗
-                </button>
-
-                {/* Start new experiment */}
-                <button
-                  onClick={handleReset}
+                  onClick={handleStart}
+                  disabled={submitting || !name.trim() || !hypothesis.trim()}
                   className="primary-btn"
                   style={{
                     width: '100%',
-                    backgroundColor: '#1e4d35',
-                    color: '#f5f0e8',
-                    borderRadius: '14px',
-                    padding: '15px',
-                    fontSize: '0.9375rem',
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    letterSpacing: '0.02em',
-                    marginBottom: '10px',
+                    backgroundColor: submitting || !name.trim() || !hypothesis.trim() ? '#8eb8a3' : '#1e4d35',
+                    color: '#f5f0e8', borderRadius: '14px', padding: '15px',
+                    fontSize: '0.9375rem', fontWeight: 600, border: 'none',
+                    cursor: submitting || !name.trim() || !hypothesis.trim() ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit', letterSpacing: '0.02em',
                   }}
                 >
-                  Start a New Experiment →
-                </button>
-                <button
-                  onClick={handleDeleteClick}
-                  className="delete-btn"
-                  style={{
-                    width: '100%',
-                    backgroundColor: 'transparent',
-                    color: deleteConfirming ? '#c0392b' : '#c0a8a0',
-                    borderRadius: '14px',
-                    padding: '11px',
-                    fontSize: '0.8125rem',
-                    fontWeight: 500,
-                    border: `1px solid ${deleteConfirming ? '#fdd5cc' : '#e8e0d8'}`,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    transition: 'color 0.15s ease, border-color 0.15s ease',
-                  }}
-                >
-                  {deleteConfirming ? 'Are you sure? Click again to delete' : 'Delete Experiment'}
+                  {submitting ? 'Starting...' : 'Start Experiment →'}
                 </button>
               </div>
-            )}
-          </>
+            </div>
+          </div>
         )}
       </main>
 
       {/* ── Share Overlay ── */}
-      {showShare && result && experiment && (() => {
+      {shareTarget && (() => {
+        const { experiment: exp, result } = shareTarget
         const vs = VERDICT_STYLES[result.verdict]
         return (
           <div
-            onClick={() => setShowShare(false)}
+            onClick={() => setShareTarget(null)}
             style={{
-              position: 'fixed',
-              inset: 0,
+              position: 'fixed', inset: 0,
               backgroundColor: 'rgba(10, 24, 16, 0.72)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              padding: '24px 16px',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              zIndex: 1000, padding: '24px 16px',
             }}
           >
-            {/* Card */}
             <div
               className="share-card"
               onClick={(e) => e.stopPropagation()}
               style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '26px',
-                padding: '32px 28px 28px',
-                width: '100%',
-                maxWidth: '380px',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-                marginBottom: '16px',
+                backgroundColor: '#ffffff', borderRadius: '26px',
+                padding: '32px 28px 28px', width: '100%', maxWidth: '380px',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.3)', marginBottom: '16px',
               }}
             >
-              {/* GutBut wordmark */}
-              <p
-                style={{
-                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                  color: '#1e4d35',
-                  fontSize: '1.5rem',
-                  fontWeight: 600,
-                  letterSpacing: '-0.01em',
-                  margin: '0 0 20px',
-                  textAlign: 'center',
-                }}
-              >
+              <p style={{
+                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                color: '#1e4d35', fontSize: '1.5rem', fontWeight: 600,
+                letterSpacing: '-0.01em', margin: '0 0 20px', textAlign: 'center',
+              }}>
                 GutBut
               </p>
-
-              {/* Experiment name */}
-              <h3
-                style={{
-                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                  color: '#1e4d35',
-                  fontSize: '1.1875rem',
-                  fontWeight: 600,
-                  margin: '0 0 16px',
-                  lineHeight: 1.25,
-                  textAlign: 'center',
-                }}
-              >
-                {experiment.name}
+              <h3 style={{
+                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                color: '#1e4d35', fontSize: '1.1875rem', fontWeight: 600,
+                margin: '0 0 16px', lineHeight: 1.25, textAlign: 'center',
+              }}>
+                {exp.name}
               </h3>
-
-              {/* Verdict badge */}
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-                <span
-                  style={{
-                    backgroundColor: vs.bg,
-                    color: vs.color,
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    padding: '7px 18px',
-                    borderRadius: '100px',
-                    border: `1px solid ${vs.border}`,
-                  }}
-                >
+                <span style={{
+                  backgroundColor: vs.bg, color: vs.color,
+                  fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em',
+                  textTransform: 'uppercase', padding: '7px 18px',
+                  borderRadius: '100px', border: `1px solid ${vs.border}`,
+                }}>
                   {vs.icon} {result.verdictLabel}
                 </span>
               </div>
-
-              {/* One-line summary */}
-              <p
-                style={{
-                  color: '#5a7a6a',
-                  fontSize: '0.875rem',
-                  lineHeight: 1.65,
-                  margin: '0 0 20px',
-                  textAlign: 'center',
-                }}
-              >
+              <p style={{
+                color: '#5a7a6a', fontSize: '0.875rem', lineHeight: 1.65,
+                margin: '0 0 20px', textAlign: 'center',
+              }}>
                 {result.summary}
               </p>
-
-              {/* Divider */}
               <div style={{ height: '1px', backgroundColor: '#f0ebe3', marginBottom: '16px' }} />
-
-              {/* Footer */}
-              <p
-                style={{
-                  color: '#b8b0a4',
-                  fontSize: '0.75rem',
-                  textAlign: 'center',
-                  margin: 0,
-                  lineHeight: 1.55,
-                }}
-              >
-                Discovered with GutBut Trigger Tool
-                <br />
+              <p style={{ color: '#b8b0a4', fontSize: '0.75rem', textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
+                Discovered with GutBut Trigger Tool<br />
                 <span style={{ color: '#9aada5' }}>gutbut-trigger-tool.vercel.app</span>
               </p>
             </div>
 
-            {/* Instruction */}
-            <p
-              style={{
-                color: 'rgba(255,255,255,0.65)',
-                fontSize: '0.8125rem',
-                textAlign: 'center',
-                margin: '0 0 16px',
-                letterSpacing: '0.01em',
-              }}
-            >
+            <p style={{
+              color: 'rgba(255,255,255,0.65)', fontSize: '0.8125rem',
+              textAlign: 'center', margin: '0 0 16px',
+            }}>
               Screenshot this card to share on WhatsApp or Instagram
             </p>
 
-            {/* Buttons */}
             <div style={{ display: 'flex', gap: '10px', width: '100%', maxWidth: '380px' }}>
               <button
-                onClick={() => setShowShare(false)}
+                onClick={() => setShareTarget(null)}
                 className="overlay-close-btn"
                 style={{
-                  flex: 1,
-                  backgroundColor: 'transparent',
-                  color: '#ffffff',
-                  borderRadius: '100px',
-                  padding: '13px',
-                  fontSize: '0.9375rem',
-                  fontWeight: 500,
-                  border: '1px solid rgba(255,255,255,0.35)',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  letterSpacing: '0.02em',
+                  flex: 1, backgroundColor: 'transparent', color: '#ffffff',
+                  borderRadius: '100px', padding: '13px', fontSize: '0.9375rem',
+                  fontWeight: 500, border: '1px solid rgba(255,255,255,0.35)',
+                  cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.02em',
                 }}
               >
                 Close
@@ -1099,17 +959,10 @@ export default function ExperimentsPage() {
                 onClick={handleCopyLink}
                 className="overlay-copy-btn"
                 style={{
-                  flex: 1,
-                  backgroundColor: '#1e4d35',
-                  color: '#f5f0e8',
-                  borderRadius: '100px',
-                  padding: '13px',
-                  fontSize: '0.9375rem',
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  letterSpacing: '0.02em',
+                  flex: 1, backgroundColor: '#1e4d35', color: '#f5f0e8',
+                  borderRadius: '100px', padding: '13px', fontSize: '0.9375rem',
+                  fontWeight: 600, border: 'none', cursor: 'pointer',
+                  fontFamily: 'inherit', letterSpacing: '0.02em',
                 }}
               >
                 {copyDone ? 'Copied ✓' : 'Copy Link'}
