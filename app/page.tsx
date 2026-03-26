@@ -103,7 +103,8 @@ export default function LandingPage() {
         }
 
         @media (max-width: 640px) {
-          .steps-row { flex-direction: column !important; gap: 28px !important; }
+          .steps-row { flex-direction: column !important; gap: 28px !important; align-items: center !important; }
+          .steps-row > div { width: 100% !important; text-align: center !important; align-items: center !important; }
           .discover-row { flex-direction: column !important; }
           .hero-heading { font-size: 2.2rem !important; }
           .connector-arrow { display: none !important; }
