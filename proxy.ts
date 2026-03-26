@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PROTECTED_ROUTES = ['/log', '/history', '/insights', '/experiments', '/profile']
+const PROTECTED_ROUTES = ['/log', '/history', '/insights', '/experiments', '/profile', '/my-info']
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -26,5 +26,6 @@ export const config = {
     '/insights/:path*',
     '/experiments/:path*',
     '/profile/:path*',
+    '/my-info/:path*',
   ],
 }

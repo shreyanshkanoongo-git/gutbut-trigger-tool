@@ -235,6 +235,39 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            {/* My Info */}
+            <Link href="/my-info">
+              <button
+                style={{
+                  width: '100%',
+                  backgroundColor: 'transparent',
+                  color: '#1e4d35',
+                  borderRadius: '14px',
+                  padding: '15px',
+                  fontSize: '0.9375rem',
+                  fontWeight: 500,
+                  border: '1px solid #1e4d35',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.02em',
+                  marginBottom: '12px',
+                  display: 'block',
+                  textAlign: 'center',
+                  boxSizing: 'border-box',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1e4d35'
+                  e.currentTarget.style.color = '#f5f0e8'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = '#1e4d35'
+                }}
+              >
+                My Info
+              </button>
+            </Link>
+
             {/* Export */}
             <button
               onClick={handleExport}
