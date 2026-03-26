@@ -6,10 +6,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const dateRange = searchParams.get('dateRange') ?? '7'
-  const userId = searchParams.get('userId')
+export async function POST(req: NextRequest) {
+  const body = await req.json()
+  const { dateRange = '7', userId, userProfile } = body
 
   console.log('[Insights API] dateRange:', dateRange, '| userId:', userId ?? 'MISSING')
 
@@ -70,7 +69,11 @@ export async function GET(req: NextRequest) {
     .filter(Boolean)
     .join('\n')
 
-  const prompt = `You are a gut health analyst. Analyse the following health logs and return ONLY a JSON object with no markdown, no explanation, just raw JSON. Find specific patterns with exact counts and percentages. Be specific — name the actual foods, actual symptoms, actual numbers. Every insight must include one actionable recommendation the user can take this week.
+  const userContext = userProfile
+    ? `User context: Name: ${userProfile.first_name ?? 'Unknown'}, Age: ${userProfile.age ?? 'Unknown'}, Gender: ${userProfile.gender ?? 'Unknown'}, Diet: ${userProfile.diet_type ?? 'Unknown'}, Wellness goals: ${(userProfile.wellness_goals ?? []).join(', ') || 'None specified'}, Current symptoms: ${(userProfile.current_symptoms ?? []).join(', ') || 'None specified'}.`
+    : ''
+
+  const prompt = `${userContext ? userContext + '\n\n' : ''}You are a gut health analyst. Analyse the following health logs and return ONLY a JSON object with no markdown, no explanation, just raw JSON. Find specific patterns with exact counts and percentages. Be specific — name the actual foods, actual symptoms, actual numbers. Every insight must include one actionable recommendation the user can take this week.
 
 Return this exact JSON shape:
 {

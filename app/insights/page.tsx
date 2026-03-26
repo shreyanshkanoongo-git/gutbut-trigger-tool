@@ -104,18 +104,25 @@ export default function InsightsPage() {
   const [error, setError] = useState('')
   const [userInitial, setUserInitial] = useState('?')
   const [userId, setUserId] = useState<string | null>(null)
+  const [userProfile, setUserProfile] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       console.log('[Insights] getUser result:', user?.id ?? 'null — no authenticated user')
       if (user) {
         setUserInitial((user.email?.[0] ?? '?').toUpperCase())
         setUserId(user.id)
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('first_name, age, gender, diet_type, wellness_goals, current_symptoms')
+          .eq('user_id', user.id)
+          .single()
+        setUserProfile(profile ?? null)
       }
     })
   }, [])
 
-  const fetchInsights = useCallback(async (range: DateRange, uid: string) => {
+  const fetchInsights = useCallback(async (range: DateRange, uid: string, profile: Record<string, unknown> | null) => {
     if (!uid) {
       console.warn('[Insights] fetchInsights called with empty uid — aborting')
       return
@@ -125,9 +132,11 @@ export default function InsightsPage() {
     setError('')
     setData(null)
     try {
-      const url = `/api/insights?dateRange=${range}&userId=${uid}`
-      console.log('[Insights] fetching:', url)
-      const res = await fetch(url)
+      const res = await fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dateRange: range, userId: uid, userProfile: profile }),
+      })
       console.log('[Insights] response status:', res.status)
       const json = await res.json()
       console.log('[Insights] response body:', json)
@@ -143,8 +152,8 @@ export default function InsightsPage() {
 
   useEffect(() => {
     console.log('[Insights] useEffect fired — userId:', userId, 'dateRange:', dateRange)
-    if (userId) fetchInsights(dateRange, userId)
-  }, [dateRange, userId, fetchInsights])
+    if (userId) fetchInsights(dateRange, userId, userProfile)
+  }, [dateRange, userId, userProfile, fetchInsights])
 
   // Group insights by category, preserving defined order
   const grouped = data?.insights
@@ -172,6 +181,9 @@ export default function InsightsPage() {
           from { opacity: 0; transform: translateY(12px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
 
         .fade-in-up { animation: fadeInUp 0.45s cubic-bezier(0.22,1,0.36,1) both; }
 
@@ -180,6 +192,14 @@ export default function InsightsPage() {
           border-radius: 50%;
           background-color: #1e4d35;
           animation: pulseDot 1.5s ease-in-out infinite;
+        }
+
+        .loading-spinner {
+          width: 36px; height: 36px;
+          border-radius: 50%;
+          border: 2.5px solid rgba(30,77,53,0.15);
+          border-top-color: #1e4d35;
+          animation: spin 0.8s linear infinite;
         }
 
         .insight-card {
@@ -435,26 +455,41 @@ export default function InsightsPage() {
         {/* ── Loading ── */}
         {loading && (
           <div
+            className="w-full max-w-md"
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '22px',
-              marginTop: '64px',
+              justifyContent: 'center',
+              marginTop: '32px',
             }}
           >
-            <div style={{ display: 'flex', gap: '9px' }}>
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="dot"
-                  style={{ animationDelay: `${i * 0.22}s` }}
-                />
-              ))}
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '24px',
+                border: '1px solid #e4ddd2',
+                boxShadow: '0 4px 24px rgba(30,77,53,0.07)',
+                padding: '48px 40px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '20px',
+                width: '100%',
+              }}
+            >
+              <div className="loading-spinner" />
+              <p
+                style={{
+                  fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+                  color: '#1e4d35',
+                  fontSize: '0.9375rem',
+                  fontWeight: 500,
+                  letterSpacing: '0.01em',
+                  margin: 0,
+                }}
+              >
+                Analysing your data...
+              </p>
             </div>
-            <p style={{ color: '#9aada5', fontSize: '0.875rem', letterSpacing: '0.04em' }}>
-              Analysing your data...
-            </p>
           </div>
         )}
 
