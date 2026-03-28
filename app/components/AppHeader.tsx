@@ -23,10 +23,9 @@ export default function AppHeader({ pageName, userInitial }: AppHeaderProps) {
     <>
       <style>{`
         .app-nav-bar::-webkit-scrollbar { display: none; }
-        .app-nav-tab { transition: color 0.15s ease; }
-        .app-nav-tab:hover { color: #1e4d35 !important; }
+        .app-nav-tab { transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
         .app-avatar { transition: opacity 0.15s ease; }
-        .app-avatar:hover { opacity: 0.85; }
+        .app-avatar:hover { opacity: 0.82; }
       `}</style>
       <div
         style={{
@@ -43,8 +42,8 @@ export default function AppHeader({ pageName, userInitial }: AppHeaderProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 20px',
-            borderBottom: '1px solid rgba(30,77,53,0.1)',
+            padding: '0 24px',
+            borderBottom: '1px solid rgba(30,77,53,0.08)',
             position: 'relative',
           }}
         >
@@ -65,11 +64,11 @@ export default function AppHeader({ pageName, userInitial }: AppHeaderProps) {
               left: '50%',
               transform: 'translateX(-50%)',
               fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
-              fontSize: '12px',
-              fontWeight: 500,
-              letterSpacing: '1.5px',
+              fontSize: '11px',
+              fontWeight: 400,
+              letterSpacing: '2px',
               textTransform: 'uppercase',
-              color: '#5a5a52',
+              color: '#8a8a7e',
               whiteSpace: 'nowrap',
             }}
           >
@@ -79,20 +78,19 @@ export default function AppHeader({ pageName, userInitial }: AppHeaderProps) {
             <div
               className="app-avatar"
               style={{
-                width: '34px',
-                height: '34px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 backgroundColor: '#1e4d35',
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '0.875rem',
-                fontWeight: 600,
+                fontSize: '14px',
+                fontWeight: 700,
                 cursor: 'pointer',
                 fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
                 flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(30,77,53,0.2)',
               }}
             >
               {userInitial}
@@ -105,7 +103,7 @@ export default function AppHeader({ pageName, userInitial }: AppHeaderProps) {
           className="app-nav-bar"
           style={{
             padding: '8px 16px',
-            borderBottom: '1px solid rgba(30,77,53,0.1)',
+            borderBottom: '1px solid rgba(30,77,53,0.06)',
             overflowX: 'auto',
             scrollbarWidth: 'none',
           }}
@@ -113,7 +111,7 @@ export default function AppHeader({ pageName, userInitial }: AppHeaderProps) {
           <div
             style={{
               display: 'flex',
-              gap: '4px',
+              gap: '6px',
               justifyContent: 'center',
               minWidth: 'max-content',
               margin: '0 auto',
@@ -127,16 +125,16 @@ export default function AppHeader({ pageName, userInitial }: AppHeaderProps) {
                     className="app-nav-tab"
                     style={{
                       display: 'inline-block',
-                      padding: '7px 14px',
+                      padding: '5px 14px',
                       borderRadius: '100px',
                       fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
-                      fontSize: '0.75rem',
+                      fontSize: '12px',
                       fontWeight: active ? 600 : 400,
                       cursor: 'pointer',
                       backgroundColor: active ? '#1e4d35' : 'transparent',
                       color: active ? '#ffffff' : '#8a8a7e',
+                      border: active ? 'none' : '1px solid rgba(30,77,53,0.12)',
                       whiteSpace: 'nowrap',
-                      letterSpacing: '0.01em',
                     }}
                   >
                     {label}

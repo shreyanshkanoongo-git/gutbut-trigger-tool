@@ -11,76 +11,48 @@ const LOG_TYPES = [
     type: 'meal' as LogType,
     label: 'Meal',
     subtitle: 'What you ate',
-    iconBg: '#e8f0eb',
-    iconColor: '#1e6641',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
-        <path d="M7 2v20" />
-        <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-      </svg>
-    ),
+    emoji: '🍽',
+    borderColor: '#1e4d35',
+    iconBg: 'rgba(30,77,53,0.07)',
+    headerBg: 'rgba(30,77,53,0.04)',
   },
   {
     type: 'symptom' as LogType,
     label: 'Symptom',
     subtitle: 'How you feel',
-    iconBg: '#fde8e8',
-    iconColor: '#c0392b',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-      </svg>
-    ),
+    emoji: '⚡',
+    borderColor: '#c0392b',
+    iconBg: 'rgba(192,57,43,0.07)',
+    headerBg: 'rgba(192,57,43,0.04)',
   },
   {
     type: 'sleep' as LogType,
     label: 'Sleep',
     subtitle: 'Rest quality',
-    iconBg: '#e8f0fb',
-    iconColor: '#2c5ea8',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-      </svg>
-    ),
+    emoji: '🌙',
+    borderColor: '#1a3a5c',
+    iconBg: 'rgba(26,58,92,0.07)',
+    headerBg: 'rgba(26,58,92,0.04)',
   },
   {
     type: 'stress' as LogType,
     label: 'Stress',
     subtitle: 'Mental load',
-    iconBg: '#fef3e2',
-    iconColor: '#b07d00',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M8 15s1.5-2 4-2 4 2 4 2" />
-        <line x1="9" y1="9" x2="9.01" y2="9" />
-        <line x1="15" y1="9" x2="15.01" y2="9" />
-      </svg>
-    ),
+    emoji: '🧠',
+    borderColor: '#b7770d',
+    iconBg: 'rgba(183,119,13,0.07)',
+    headerBg: 'rgba(183,119,13,0.04)',
   },
   {
     type: 'supplement' as LogType,
     label: 'Supplement',
     subtitle: 'What you took',
-    iconBg: '#f0ebfe',
-    iconColor: '#6b4f9e',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="9" width="18" height="6" rx="3" />
-        <line x1="12" y1="9" x2="12" y2="15" />
-      </svg>
-    ),
+    emoji: '💊',
+    borderColor: '#5b3d8a',
+    iconBg: 'rgba(91,61,138,0.07)',
+    headerBg: 'rgba(91,61,138,0.04)',
   },
 ]
-
-const CARD_STYLE = {
-  backgroundColor: '#ffffff',
-  borderRadius: '16px',
-  border: '1px solid rgba(30,77,53,0.1)',
-  boxShadow: '0 2px 12px rgba(30,77,53,0.06)',
-}
 
 export default function LogPage() {
   const [activeLog, setActiveLog] = useState<LogType | null>(null)
@@ -92,12 +64,38 @@ export default function LogPage() {
   const [loading, setLoading] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [userInitial, setUserInitial] = useState('?')
+  const [firstName, setFirstName] = useState('')
+  const [streak, setStreak] = useState(0)
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning,' : hour < 17 ? 'Good afternoon,' : 'Good evening,'
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
         setUserId(user.id)
         setUserInitial((user.email?.[0] ?? '?').toUpperCase())
+
+        // Fetch firstName from user_profiles
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('first_name')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        setFirstName(profile?.first_name ?? '')
+
+        // Streak: distinct dates in last 30 days
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        const { data: recentLogs } = await supabase
+          .from('logs')
+          .select('created_at')
+          .eq('user_id', user.id)
+          .gte('created_at', thirtyDaysAgo.toISOString())
+        const uniqueDates = new Set(
+          (recentLogs ?? []).map(l => new Date(l.created_at).toDateString())
+        )
+        setStreak(uniqueDates.size)
       }
     })
   }, [])
@@ -127,7 +125,7 @@ export default function LogPage() {
       setTimeout(() => {
         setSubmitted(false)
         setActiveLog(null)
-      }, 2500)
+      }, 2000)
     }
   }
 
@@ -137,7 +135,7 @@ export default function LogPage() {
     <>
       <style>{`
         @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(18px); }
+          from { opacity: 0; transform: translateY(16px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes scaleIn {
@@ -149,27 +147,31 @@ export default function LogPage() {
           70%  { transform: scale(1.12); }
           100% { opacity: 1; transform: scale(1); }
         }
-        .fade-in-up { animation: fadeInUp 0.45s cubic-bezier(0.22,1,0.36,1) both; }
-        .scale-in   { animation: scaleIn  0.35s cubic-bezier(0.22,1,0.36,1) both; }
-        .check-pop  { animation: checkPop 0.55s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+        .scale-in   { animation: scaleIn 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+        .check-pop  { animation: checkPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both; }
 
         .log-type-card {
-          transition: transform 0.22s ease, box-shadow 0.22s ease;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
           cursor: pointer;
+          border: none;
+          text-align: left;
+          width: 100%;
         }
         .log-type-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 12px 32px rgba(30,77,53,0.12) !important;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 16px rgba(30,77,53,0.1) !important;
         }
-        .log-type-card:active { transform: translateY(-1px); }
+        .log-type-card:active { transform: translateY(0); }
 
         textarea, input[type="number"], input[type="text"] {
           outline: none;
           transition: border-color 0.2s ease;
         }
         textarea:focus, input[type="number"]:focus, input[type="text"]:focus {
-          border-color: #1e4d35 !important;
+          border-color: rgba(30,77,53,0.35) !important;
         }
+        textarea::placeholder { color: #b0aca6; }
 
         input[type="range"] {
           -webkit-appearance: none;
@@ -185,22 +187,18 @@ export default function LogPage() {
         }
         input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none;
-          width: 22px; height: 22px;
+          width: 20px; height: 20px;
           border-radius: 50%;
           background: #1e4d35;
-          margin-top: -9px;
-          box-shadow: 0 2px 8px rgba(30,77,53,0.28);
-          transition: transform 0.15s ease;
+          margin-top: -8px;
+          box-shadow: 0 2px 6px rgba(30,77,53,0.28);
         }
-        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
 
-        .submit-btn { transition: background-color 0.2s ease, transform 0.15s ease; }
-        .submit-btn:not(:disabled):hover  { background-color: #163b28 !important; }
-        .submit-btn:not(:disabled):active { transform: scale(0.98); }
-
-        @media (max-width: 640px) {
-          .log-grid { grid-template-columns: 1fr !important; }
-          .log-grid > * { grid-column: span 1 !important; }
+        .save-btn {
+          transition: background-color 0.2s ease;
+        }
+        .save-btn:not(:disabled):hover {
+          background-color: rgba(30,77,53,0.05) !important;
         }
       `}</style>
 
@@ -209,375 +207,433 @@ export default function LogPage() {
       <main
         style={{
           minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          paddingTop: '116px',
+          paddingTop: '104px',
           paddingBottom: '80px',
-          paddingLeft: '20px',
-          paddingRight: '20px',
           backgroundColor: '#f5f0e8',
           fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
         }}
       >
+        <div style={{ maxWidth: '480px', margin: '0 auto', padding: '24px 16px' }}>
 
-        {/* ── Log Type Grid ── */}
-        {!activeLog && !submitted && (
-          <div className="w-full max-w-md fade-in-up">
-            <h1
-              style={{
-                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                color: '#1e4d35',
-                fontSize: '28px',
-                fontWeight: 600,
-                letterSpacing: '-0.01em',
-                lineHeight: 1.2,
-                margin: '0 0 32px',
-              }}
-            >
-              What would you like to log?
-            </h1>
+          {/* ── Log Type List ── */}
+          {!activeLog && !submitted && (
+            <div className="fade-in-up">
+              {/* Greeting */}
+              <div style={{ marginBottom: '24px' }}>
+                <p style={{ fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)", fontSize: '13px', color: '#8a8a7e', margin: '0 0 4px' }}>
+                  {greeting}
+                </p>
+                <p
+                  style={{
+                    fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                    fontStyle: 'italic',
+                    fontSize: '32px',
+                    color: '#1e4d35',
+                    margin: '0 0 6px',
+                    lineHeight: 1.15,
+                  }}
+                >
+                  {firstName || 'there'}
+                </p>
+                <p style={{ fontSize: '14px', color: '#8a8a7e', fontWeight: 300, margin: 0 }}>
+                  What would you like to log today?
+                </p>
+              </div>
 
-            <div
-              className="log-grid"
-              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}
-            >
-              {LOG_TYPES.map(({ type, label, subtitle, icon, iconBg, iconColor }) => (
+              {/* Cards */}
+              {LOG_TYPES.map(({ type, label, subtitle, emoji, borderColor, iconBg }) => (
                 <button
                   key={type}
                   onClick={() => setActiveLog(type)}
                   className="log-type-card"
                   style={{
-                    ...CARD_STYLE,
-                    padding: '28px 24px',
-                    textAlign: 'left',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(30,77,53,0.07)',
+                    borderLeft: `3px solid ${borderColor}`,
+                    boxShadow: '0 2px 8px rgba(30,77,53,0.05)',
+                    padding: '16px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '14px',
+                    marginBottom: '10px',
                     fontFamily: 'inherit',
-                    gridColumn: type === 'supplement' ? 'span 2' : undefined,
-                    background: '#ffffff',
                   }}
                 >
                   <div
                     style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '12px',
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '10px',
                       backgroundColor: iconBg,
-                      color: iconColor,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginBottom: '16px',
+                      fontSize: '18px',
                       flexShrink: 0,
                     }}
                   >
-                    {icon}
+                    {emoji}
                   </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                      color: '#1a1a18',
-                      fontSize: '20px',
-                      fontWeight: 600,
-                      marginBottom: '4px',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {label}
-                  </div>
-                  <div style={{ color: '#8a8a7e', fontSize: '13px', fontWeight: 400 }}>
-                    {subtitle}
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <p
-              style={{
-                color: '#8a8a7e',
-                fontSize: '0.75rem',
-                textAlign: 'center',
-                marginTop: '32px',
-                fontStyle: 'italic',
-              }}
-            >
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </p>
-          </div>
-        )}
-
-        {/* ── Log Form ── */}
-        {activeLog && !submitted && (
-          <div className="w-full max-w-md scale-in">
-            <button
-              onClick={() => setActiveLog(null)}
-              style={{
-                color: '#8a8a7e',
-                fontSize: '0.8125rem',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                padding: 0,
-                marginBottom: '24px',
-                transition: 'color 0.15s ease',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#1e4d35' }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8a7e' }}
-            >
-              ← Back
-            </button>
-
-            <div style={{ ...CARD_STYLE, padding: '28px' }}>
-              {/* Form header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '28px' }}>
-                <div
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    backgroundColor: LOG_TYPES.find(l => l.type === activeLog)?.iconBg,
-                    color: LOG_TYPES.find(l => l.type === activeLog)?.iconColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {activeLogData?.icon}
-                </div>
-                <div>
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                      color: '#1a1a18',
-                      fontSize: '1.375rem',
-                      fontWeight: 600,
-                      margin: 0,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    Log {activeLog.charAt(0).toUpperCase() + activeLog.slice(1)}
-                  </h2>
-                  <p style={{ color: '#8a8a7e', fontSize: '0.8rem', margin: '3px 0 0' }}>
-                    {activeLogData?.subtitle}
-                  </p>
-                </div>
-              </div>
-
-              {/* Meal / Symptom textarea */}
-              {(activeLog === 'meal' || activeLog === 'symptom') && (
-                <textarea
-                  style={{
-                    width: '100%',
-                    border: '1px solid rgba(30,77,53,0.15)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    fontSize: '0.9rem',
-                    marginBottom: '20px',
-                    fontFamily: 'inherit',
-                    color: '#1a1a18',
-                    backgroundColor: '#ffffff',
-                    resize: 'none',
-                    boxSizing: 'border-box',
-                    lineHeight: 1.65,
-                    display: 'block',
-                  }}
-                  rows={3}
-                  placeholder={activeLog === 'meal' ? 'Describe what you ate...' : "Describe what you're feeling..."}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              )}
-
-              {/* Sleep input */}
-              {activeLog === 'sleep' && (
-                <input
-                  type="number"
-                  style={{
-                    width: '100%',
-                    border: '1px solid rgba(30,77,53,0.15)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    fontSize: '0.9rem',
-                    marginBottom: '20px',
-                    fontFamily: 'inherit',
-                    color: '#1a1a18',
-                    backgroundColor: '#ffffff',
-                    boxSizing: 'border-box',
-                    display: 'block',
-                  }}
-                  placeholder="Hours of sleep"
-                  value={hours}
-                  onChange={(e) => setHours(e.target.value)}
-                />
-              )}
-
-              {/* Severity slider */}
-              {(activeLog === 'symptom' || activeLog === 'stress') && (
-                <div style={{ marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <label style={{ color: '#5a5a52', fontSize: '0.8125rem', fontWeight: 500 }}>Severity</label>
-                    <span
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
                       style={{
-                        color: '#1e4d35',
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        backgroundColor: '#e8f0eb',
-                        padding: '3px 12px',
-                        borderRadius: '100px',
+                        fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                        fontSize: '18px',
+                        fontWeight: 700,
+                        color: '#1a1a18',
+                        lineHeight: 1.2,
                       }}
                     >
-                      {severity} / 5
-                    </span>
+                      {label}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#8a8a7e', marginTop: '2px' }}>
+                      {subtitle}
+                    </div>
                   </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={5}
-                    value={severity}
-                    onChange={(e) => setSeverity(parseInt(e.target.value))}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                    <span style={{ color: '#8a8a7e', fontSize: '0.7rem' }}>Mild</span>
-                    <span style={{ color: '#8a8a7e', fontSize: '0.7rem' }}>Severe</span>
-                  </div>
+                  <span style={{ fontSize: '18px', color: '#d0ccc4', flexShrink: 0 }}>›</span>
+                </button>
+              ))}
+
+              {/* Streak */}
+              {streak > 0 && (
+                <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      fontSize: '12px',
+                      color: '#1e4d35',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid rgba(30,77,53,0.12)',
+                      borderRadius: '100px',
+                      padding: '5px 16px',
+                      boxShadow: '0 1px 4px rgba(30,77,53,0.05)',
+                    }}
+                  >
+                    🔥 {streak} day streak
+                  </span>
                 </div>
               )}
+            </div>
+          )}
 
-              {/* Supplement inputs */}
-              {activeLog === 'supplement' && (
-                <>
-                  <textarea
-                    style={{
-                      width: '100%',
-                      border: '1px solid rgba(30,77,53,0.15)',
-                      borderRadius: '10px',
-                      padding: '12px 16px',
-                      fontSize: '0.9rem',
-                      marginBottom: '12px',
-                      fontFamily: 'inherit',
-                      color: '#1a1a18',
-                      backgroundColor: '#ffffff',
-                      resize: 'none',
-                      boxSizing: 'border-box',
-                      lineHeight: 1.65,
-                      display: 'block',
-                    }}
-                    rows={2}
-                    placeholder="What supplement did you take? e.g. Probiotic 10 billion CFU, Vitamin D 2000 IU"
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                  />
-                  <textarea
-                    style={{
-                      width: '100%',
-                      border: '1px solid rgba(30,77,53,0.15)',
-                      borderRadius: '10px',
-                      padding: '12px 16px',
-                      fontSize: '0.9rem',
-                      marginBottom: '20px',
-                      fontFamily: 'inherit',
-                      color: '#1a1a18',
-                      backgroundColor: '#ffffff',
-                      resize: 'none',
-                      boxSizing: 'border-box',
-                      lineHeight: 1.65,
-                      display: 'block',
-                    }}
-                    rows={2}
-                    placeholder="Dose / notes (optional) — e.g. 1 capsule after breakfast"
-                    value={supplementDose}
-                    onChange={(e) => setSupplementDose(e.target.value)}
-                  />
-                </>
-              )}
-
-              {/* Stress note textarea */}
-              {activeLog === 'stress' && (
-                <textarea
-                  style={{
-                    width: '100%',
-                    border: '1px solid rgba(30,77,53,0.15)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    fontSize: '0.9rem',
-                    marginBottom: '20px',
-                    fontFamily: 'inherit',
-                    color: '#1a1a18',
-                    backgroundColor: '#ffffff',
-                    resize: 'none',
-                    boxSizing: 'border-box',
-                    lineHeight: 1.65,
-                    display: 'block',
-                  }}
-                  rows={2}
-                  placeholder="Add a note about your stress (optional)"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              )}
-
+          {/* ── Log Form ── */}
+          {activeLog && !submitted && (
+            <div className="scale-in">
               <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="submit-btn"
+                onClick={() => setActiveLog(null)}
                 style={{
-                  width: '100%',
-                  backgroundColor: loading ? '#8eb8a3' : '#1e4d35',
-                  color: '#ffffff',
-                  borderRadius: '100px',
-                  padding: '13px 28px',
-                  fontSize: '0.9375rem',
-                  fontWeight: 600,
+                  color: '#8a8a7e',
+                  fontSize: '12px',
+                  background: 'none',
                   border: 'none',
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  cursor: 'pointer',
                   fontFamily: 'inherit',
-                  letterSpacing: '0.02em',
+                  padding: 0,
+                  marginBottom: '12px',
                 }}
               >
-                {loading ? 'Saving...' : 'Save Entry'}
+                ← Back
               </button>
-            </div>
-          </div>
-        )}
 
-        {/* ── Success State ── */}
-        {submitted && (
-          <div className="fade-in-up" style={{ textAlign: 'center', marginTop: '60px' }}>
-            <div
-              className="check-pop"
-              style={{
-                width: '72px',
-                height: '72px',
-                borderRadius: '50%',
-                backgroundColor: '#e8f0eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 20px',
-                boxShadow: '0 8px 28px rgba(30,77,53,0.12)',
-              }}
-            >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1e4d35" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <div
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(30,77,53,0.08)',
+                  boxShadow: '0 2px 16px rgba(30,77,53,0.08)',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Form header */}
+                <div
+                  style={{
+                    padding: '16px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    borderBottom: '1px solid rgba(30,77,53,0.06)',
+                    backgroundColor: activeLogData?.headerBg,
+                    borderLeft: `3px solid ${activeLogData?.borderColor}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      backgroundColor: activeLogData?.iconBg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {activeLogData?.emoji}
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                        fontSize: '17px',
+                        fontWeight: 700,
+                        color: '#1a1a18',
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      Log {activeLog.charAt(0).toUpperCase() + activeLog.slice(1)}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#8a8a7e', marginTop: '2px' }}>
+                      {activeLogData?.subtitle}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form body */}
+                <div style={{ padding: '20px' }}>
+                  {/* Meal textarea */}
+                  {activeLog === 'meal' && (
+                    <textarea
+                      style={{
+                        width: '100%',
+                        border: '1px solid rgba(30,77,53,0.15)',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        color: '#5a5a52',
+                        backgroundColor: '#ffffff',
+                        resize: 'none',
+                        boxSizing: 'border-box',
+                        lineHeight: 1.65,
+                        display: 'block',
+                        minHeight: '100px',
+                      }}
+                      placeholder="Describe what you ate..."
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                    />
+                  )}
+
+                  {/* Symptom textarea + severity */}
+                  {activeLog === 'symptom' && (
+                    <>
+                      <textarea
+                        style={{
+                          width: '100%',
+                          border: '1px solid rgba(30,77,53,0.15)',
+                          borderRadius: '12px',
+                          padding: '14px 16px',
+                          fontSize: '14px',
+                          fontFamily: 'inherit',
+                          color: '#5a5a52',
+                          backgroundColor: '#ffffff',
+                          resize: 'none',
+                          boxSizing: 'border-box',
+                          lineHeight: 1.65,
+                          display: 'block',
+                          minHeight: '100px',
+                          marginBottom: '16px',
+                        }}
+                        placeholder="Describe what you're feeling..."
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                      />
+                      <div style={{ marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <label style={{ color: '#5a5a52', fontSize: '13px', fontWeight: 500 }}>Severity</label>
+                          <span style={{ color: '#1e4d35', fontSize: '13px', fontWeight: 600, backgroundColor: 'rgba(30,77,53,0.07)', padding: '2px 10px', borderRadius: '100px' }}>
+                            {severity} / 5
+                          </span>
+                        </div>
+                        <input type="range" min={1} max={5} value={severity} onChange={(e) => setSeverity(parseInt(e.target.value))} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                          <span style={{ color: '#8a8a7e', fontSize: '11px' }}>Mild</span>
+                          <span style={{ color: '#8a8a7e', fontSize: '11px' }}>Severe</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Sleep input */}
+                  {activeLog === 'sleep' && (
+                    <input
+                      type="number"
+                      style={{
+                        width: '100%',
+                        border: '1px solid rgba(30,77,53,0.15)',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        color: '#5a5a52',
+                        backgroundColor: '#ffffff',
+                        boxSizing: 'border-box',
+                        display: 'block',
+                      }}
+                      placeholder="Hours of sleep"
+                      value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                    />
+                  )}
+
+                  {/* Stress severity + note */}
+                  {activeLog === 'stress' && (
+                    <>
+                      <div style={{ marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <label style={{ color: '#5a5a52', fontSize: '13px', fontWeight: 500 }}>Severity</label>
+                          <span style={{ color: '#1e4d35', fontSize: '13px', fontWeight: 600, backgroundColor: 'rgba(30,77,53,0.07)', padding: '2px 10px', borderRadius: '100px' }}>
+                            {severity} / 5
+                          </span>
+                        </div>
+                        <input type="range" min={1} max={5} value={severity} onChange={(e) => setSeverity(parseInt(e.target.value))} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                          <span style={{ color: '#8a8a7e', fontSize: '11px' }}>Low</span>
+                          <span style={{ color: '#8a8a7e', fontSize: '11px' }}>High</span>
+                        </div>
+                      </div>
+                      <textarea
+                        style={{
+                          width: '100%',
+                          border: '1px solid rgba(30,77,53,0.15)',
+                          borderRadius: '12px',
+                          padding: '14px 16px',
+                          fontSize: '14px',
+                          fontFamily: 'inherit',
+                          color: '#5a5a52',
+                          backgroundColor: '#ffffff',
+                          resize: 'none',
+                          boxSizing: 'border-box',
+                          lineHeight: 1.65,
+                          display: 'block',
+                          minHeight: '80px',
+                        }}
+                        placeholder="Add a note about your stress (optional)"
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                      />
+                    </>
+                  )}
+
+                  {/* Supplement inputs */}
+                  {activeLog === 'supplement' && (
+                    <>
+                      <textarea
+                        style={{
+                          width: '100%',
+                          border: '1px solid rgba(30,77,53,0.15)',
+                          borderRadius: '12px',
+                          padding: '14px 16px',
+                          fontSize: '14px',
+                          fontFamily: 'inherit',
+                          color: '#5a5a52',
+                          backgroundColor: '#ffffff',
+                          resize: 'none',
+                          boxSizing: 'border-box',
+                          lineHeight: 1.65,
+                          display: 'block',
+                          minHeight: '80px',
+                          marginBottom: '10px',
+                        }}
+                        placeholder="What supplement did you take? e.g. Probiotic 10 billion CFU"
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                      />
+                      <textarea
+                        style={{
+                          width: '100%',
+                          border: '1px solid rgba(30,77,53,0.15)',
+                          borderRadius: '12px',
+                          padding: '14px 16px',
+                          fontSize: '14px',
+                          fontFamily: 'inherit',
+                          color: '#5a5a52',
+                          backgroundColor: '#ffffff',
+                          resize: 'none',
+                          boxSizing: 'border-box',
+                          lineHeight: 1.65,
+                          display: 'block',
+                          minHeight: '80px',
+                        }}
+                        placeholder="Dose / notes (optional)"
+                        value={supplementDose}
+                        onChange={(e) => setSupplementDose(e.target.value)}
+                      />
+                    </>
+                  )}
+
+                  {/* Save button */}
+                  <button
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="save-btn"
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#ffffff',
+                      color: '#1e4d35',
+                      border: '1.5px solid #1e4d35',
+                      borderRadius: '100px',
+                      padding: '13px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit',
+                      marginTop: '14px',
+                      opacity: loading ? 0.6 : 1,
+                    }}
+                  >
+                    {loading ? 'Saving...' : 'Save Entry'}
+                  </button>
+                </div>
+              </div>
             </div>
-            <h3
+          )}
+
+          {/* ── Success State ── */}
+          {submitted && (
+            <div
+              className="fade-in-up"
               style={{
-                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                color: '#1e4d35',
-                fontSize: '1.5rem',
-                fontWeight: 600,
-                margin: '0 0 8px',
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '40px 24px',
+                border: '1px solid rgba(30,77,53,0.08)',
+                boxShadow: '0 2px 12px rgba(30,77,53,0.06)',
+                textAlign: 'center',
               }}
             >
-              Logged.
-            </h3>
-            <p style={{ color: '#8a8a7e', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>
-              Keep it up.
-            </p>
-          </div>
-        )}
+              <div
+                className="check-pop"
+                style={{
+                  fontSize: '40px',
+                  color: '#1e4d35',
+                  marginBottom: '12px',
+                  lineHeight: 1,
+                }}
+              >
+                ✓
+              </div>
+              <p
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  fontStyle: 'italic',
+                  color: '#1e4d35',
+                  fontSize: '28px',
+                  fontWeight: 600,
+                  margin: 0,
+                }}
+              >
+                Logged.
+              </p>
+              <p style={{ color: '#8a8a7e', fontSize: '13px', marginTop: '6px', margin: '6px 0 0' }}>
+                Keep it up.
+              </p>
+            </div>
+          )}
+
+        </div>
       </main>
     </>
   )

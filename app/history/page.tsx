@@ -19,63 +19,18 @@ interface DayGroup {
   entries: Log[]
 }
 
-const PILL_ICON = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="9" width="18" height="6" rx="3" />
-    <line x1="12" y1="9" x2="12" y2="15" />
-  </svg>
-)
+interface HistoryStats {
+  total: number
+  days: number
+  topType: string
+}
 
-const TYPE_META: Record<
-  Log['type'],
-  { bg: string; iconColor: string; icon: React.ReactNode }
-> = {
-  meal: {
-    bg: '#e8f5ee',
-    iconColor: '#1e6641',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
-        <path d="M7 2v20" />
-        <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-      </svg>
-    ),
-  },
-  symptom: {
-    bg: '#fdecea',
-    iconColor: '#c0392b',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-      </svg>
-    ),
-  },
-  sleep: {
-    bg: '#e8f0fb',
-    iconColor: '#2c5ea8',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-      </svg>
-    ),
-  },
-  stress: {
-    bg: '#fef9e7',
-    iconColor: '#b07d00',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M8 15s1.5-2 4-2 4 2 4 2" />
-        <line x1="9" y1="9" x2="9.01" y2="9" />
-        <line x1="15" y1="9" x2="15.01" y2="9" />
-      </svg>
-    ),
-  },
-  supplement: {
-    bg: '#f0ebfa',
-    iconColor: '#6b4f9e',
-    icon: PILL_ICON,
-  },
+const TYPE_META: Record<Log['type'], { color: string; emoji: string; label: string }> = {
+  meal:       { color: '#1e4d35', emoji: '🍽',  label: 'Meal' },
+  symptom:    { color: '#c0392b', emoji: '⚡',  label: 'Symptom' },
+  sleep:      { color: '#1a3a5c', emoji: '🌙',  label: 'Sleep' },
+  stress:     { color: '#b7770d', emoji: '🧠',  label: 'Stress' },
+  supplement: { color: '#5b3d8a', emoji: '💊',  label: 'Supplement' },
 }
 
 function dayLabel(dateStr: string): string {
@@ -112,9 +67,9 @@ function groupByDay(logs: Log[]): DayGroup[] {
   }))
 }
 
-function SeverityDots({ value }: { value: number }) {
+function SeverityDots({ value, color }: { value: number; color: string }) {
   return (
-    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
       {[1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
@@ -122,7 +77,7 @@ function SeverityDots({ value }: { value: number }) {
             width: '6px',
             height: '6px',
             borderRadius: '50%',
-            backgroundColor: i <= value ? '#1e4d35' : '#d6cfc4',
+            backgroundColor: i <= value ? color : '#e8e3d9',
           }}
         />
       ))}
@@ -135,37 +90,50 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [userInitial, setUserInitial] = useState('?')
+  const [stats, setStats] = useState<HistoryStats | null>(null)
 
   const todayFormatted = new Date().toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserInitial((user.email?.[0] ?? '?').toUpperCase())
-    })
-  }, [])
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (user) {
+        setUserInitial((user.email?.[0] ?? '?').toUpperCase())
 
-  useEffect(() => {
-    supabase
-      .from('logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
+        const { data, error } = await supabase
+          .from('logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
         if (error) {
           setError('Could not load history. Please try again.')
         } else {
-          setGroups(groupByDay((data as Log[]) ?? []))
+          const logs = (data as Log[]) ?? []
+          setGroups(groupByDay(logs))
+
+          // Compute stats
+          const total = logs.length
+          const uniqueDays = new Set(logs.map(l => new Date(l.created_at).toDateString())).size
+          const typeCounts: Record<string, number> = {}
+          for (const log of logs) {
+            typeCounts[log.type] = (typeCounts[log.type] ?? 0) + 1
+          }
+          const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—'
+          const topLabel = TYPE_META[topType as Log['type']]?.label ?? topType
+          setStats({ total, days: uniqueDays, topType: topLabel })
         }
         setLoading(false)
-      })
+      }
+    })
   }, [])
 
   return (
     <>
       <style>{`
         @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(18px); }
+          from { opacity: 0; transform: translateY(16px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes pulseDot {
@@ -173,10 +141,10 @@ export default function HistoryPage() {
           50%       { opacity: 1;    transform: scale(1); }
         }
         @keyframes cardIn {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .fade-in-up { animation: fadeInUp 0.45s cubic-bezier(0.22,1,0.36,1) both; }
+        .fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.22,1,0.36,1) both; }
         .dot {
           width: 8px; height: 8px; border-radius: 50%;
           background-color: #1e4d35;
@@ -184,7 +152,7 @@ export default function HistoryPage() {
         }
         .entry-card {
           opacity: 0;
-          animation: cardIn 0.35s cubic-bezier(0.22,1,0.36,1) forwards;
+          animation: cardIn 0.3s cubic-bezier(0.22,1,0.36,1) forwards;
         }
       `}</style>
 
@@ -195,27 +163,76 @@ export default function HistoryPage() {
           minHeight: '100vh',
           backgroundColor: '#f5f0e8',
           fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
-          paddingTop: '116px',
+          paddingTop: '104px',
           paddingBottom: '80px',
-          paddingLeft: '20px',
-          paddingRight: '20px',
         }}
       >
-        <div style={{ maxWidth: '448px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '560px', margin: '0 auto', padding: '24px 16px' }}>
+
+          {/* ── Stats Strip ── */}
+          {stats && !loading && (
+            <div
+              className="fade-in-up"
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '14px',
+                padding: '18px 20px',
+                border: '1px solid rgba(30,77,53,0.07)',
+                boxShadow: '0 2px 8px rgba(30,77,53,0.05)',
+                marginBottom: '20px',
+                display: 'flex',
+              }}
+            >
+              {[
+                { value: stats.total,   label: 'total logs' },
+                { value: stats.days,    label: 'days tracked' },
+                { value: stats.topType, label: 'top type' },
+              ].map(({ value, label }, i) => (
+                <div
+                  key={label}
+                  style={{
+                    flex: 1,
+                    textAlign: 'center',
+                    borderLeft: i > 0 ? '1px solid rgba(30,77,53,0.08)' : 'none',
+                    paddingLeft: i > 0 ? '16px' : 0,
+                    paddingRight: i < 2 ? '16px' : 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                      fontSize: '26px',
+                      color: '#1e4d35',
+                      display: 'block',
+                      marginBottom: '3px',
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {value}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#8a8a7e', display: 'block' }}>
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* ── Today's date ── */}
-          <p
-            className="fade-in-up"
-            style={{
-              fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-              fontStyle: 'italic',
-              fontSize: '18px',
-              color: '#8a8a7e',
-              margin: '0 0 28px',
-            }}
-          >
-            {todayFormatted}
-          </p>
+          {!loading && (
+            <p
+              className="fade-in-up"
+              style={{
+                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                fontStyle: 'italic',
+                fontSize: '16px',
+                color: '#8a8a7e',
+                margin: '0 0 16px',
+              }}
+            >
+              {todayFormatted}
+            </p>
+          )}
 
           {/* ── Loading ── */}
           {loading && (
@@ -232,13 +249,13 @@ export default function HistoryPage() {
               className="fade-in-up"
               style={{
                 backgroundColor: '#fff8f6',
-                borderRadius: '16px',
-                padding: '24px',
-                border: '1px solid #fdd5cc',
+                borderRadius: '14px',
+                padding: '20px',
+                border: '1px solid rgba(192,57,43,0.15)',
                 textAlign: 'center',
               }}
             >
-              <p style={{ color: '#c0392b', fontSize: '0.9rem', margin: 0 }}>{error}</p>
+              <p style={{ color: '#c0392b', fontSize: '14px', margin: 0 }}>{error}</p>
             </div>
           )}
 
@@ -246,43 +263,34 @@ export default function HistoryPage() {
           {!loading && !error && groups.length === 0 && (
             <div
               className="fade-in-up"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                paddingTop: '60px',
-                textAlign: 'center',
-              }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '48px', textAlign: 'center' }}
             >
-              <svg width="72" height="72" viewBox="0 0 72 72" fill="none" style={{ marginBottom: '24px' }}>
-                <circle cx="36" cy="36" r="35" stroke="rgba(30,77,53,0.15)" strokeWidth="1.5" />
-                <line x1="36" y1="22" x2="36" y2="50" stroke="rgba(30,77,53,0.3)" strokeWidth="2" strokeLinecap="round" />
-                <line x1="22" y1="36" x2="50" y2="36" stroke="rgba(30,77,53,0.3)" strokeWidth="2" strokeLinecap="round" />
+              <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style={{ marginBottom: '20px' }}>
+                <circle cx="32" cy="32" r="31" stroke="rgba(30,77,53,0.12)" strokeWidth="1.5" />
+                <line x1="32" y1="20" x2="32" y2="44" stroke="rgba(30,77,53,0.25)" strokeWidth="2" strokeLinecap="round" />
+                <line x1="20" y1="32" x2="44" y2="32" stroke="rgba(30,77,53,0.25)" strokeWidth="2" strokeLinecap="round" />
               </svg>
-              <h3
+              <p
                 style={{
                   fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                  color: '#1e4d35',
-                  fontSize: '1.25rem',
-                  fontWeight: 600,
-                  margin: '0 0 10px',
+                  color: '#1e4d35', fontSize: '1.25rem', fontWeight: 600, margin: '0 0 8px',
                 }}
               >
                 Nothing logged yet
-              </h3>
-              <p style={{ color: '#8a8a7e', fontSize: '0.875rem', lineHeight: 1.7, margin: '0 0 28px' }}>
+              </p>
+              <p style={{ color: '#8a8a7e', fontSize: '13px', margin: '0 0 24px' }}>
                 Start by logging a meal or symptom
               </p>
               <Link href="/log">
                 <button
                   style={{
-                    backgroundColor: '#1e4d35',
-                    color: '#f5f0e8',
+                    backgroundColor: '#ffffff',
+                    color: '#1e4d35',
+                    border: '1.5px solid #1e4d35',
                     borderRadius: '100px',
-                    padding: '12px 28px',
-                    fontSize: '0.875rem',
+                    padding: '10px 24px',
+                    fontSize: '13px',
                     fontWeight: 600,
-                    border: 'none',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                   }}
@@ -295,116 +303,124 @@ export default function HistoryPage() {
 
           {/* ── Day Groups ── */}
           {!loading && !error && groups.length > 0 && (
-            <div className="fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            <div className="fade-in-up" style={{ display: 'flex', flexDirection: 'column' }}>
               {groups.map((group, gi) => (
                 <div key={gi}>
                   {/* Day label */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      margin: '16px 0 8px',
+                    }}
+                  >
                     <span
                       style={{
-                        color: '#8a8a7e',
-                        fontSize: '11px',
-                        fontWeight: 500,
+                        fontSize: '10px',
+                        fontWeight: 400,
                         letterSpacing: '2px',
                         textTransform: 'uppercase',
+                        color: '#8a8a7e',
                         whiteSpace: 'nowrap',
-                        fontVariant: 'small-caps',
                       }}
                     >
                       {group.label}
                     </span>
-                    <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(30,77,53,0.1)' }} />
+                    <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(30,77,53,0.06)' }} />
                   </div>
 
                   {/* Entry cards */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {group.entries.map((entry, ei) => {
-                      const meta = TYPE_META[entry.type]
-                      return (
+                  {group.entries.map((entry, ei) => {
+                    const meta = TYPE_META[entry.type]
+                    return (
+                      <div
+                        key={entry.id}
+                        className="entry-card"
+                        style={{
+                          animationDelay: `${(gi * 3 + ei) * 0.04}s`,
+                          backgroundColor: '#ffffff',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(30,77,53,0.06)',
+                          borderLeft: `3px solid ${meta.color}`,
+                          padding: '14px 18px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          marginBottom: '7px',
+                          boxShadow: '0 1px 4px rgba(30,77,53,0.04)',
+                        }}
+                      >
+                        {/* Badge */}
                         <div
-                          key={entry.id}
-                          className="entry-card"
                           style={{
-                            animationDelay: `${(gi * 3 + ei) * 0.05}s`,
-                            backgroundColor: '#ffffff',
-                            borderRadius: '12px',
-                            padding: '16px 20px',
-                            border: '1px solid rgba(30,77,53,0.1)',
-                            boxShadow: '0 2px 12px rgba(30,77,53,0.06)',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '10px',
+                            backgroundColor: meta.color,
                             display: 'flex',
-                            gap: '14px',
-                            alignItems: 'flex-start',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '16px',
+                            flexShrink: 0,
                           }}
                         >
-                          {/* Icon badge */}
-                          <div
-                            style={{
-                              width: '40px',
-                              height: '40px',
-                              borderRadius: '50%',
-                              backgroundColor: meta.bg,
-                              color: meta.iconColor,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                            }}
-                          >
-                            {meta.icon}
-                          </div>
+                          {meta.emoji}
+                        </div>
 
-                          {/* Content */}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            {entry.content ? (
+                        {/* Content */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {entry.type === 'sleep' && entry.hours != null ? (
+                            <span
+                              style={{
+                                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                                fontSize: '18px',
+                                fontWeight: 700,
+                                color: '#1a3a5c',
+                                display: 'block',
+                              }}
+                            >
+                              {entry.hours}h sleep
+                            </span>
+                          ) : (
+                            entry.content ? (
                               <p
                                 style={{
-                                  color: '#2c3e30',
-                                  fontSize: '0.9rem',
-                                  lineHeight: 1.55,
-                                  margin: '0 0 6px',
+                                  fontSize: '14px',
+                                  color: meta.color,
+                                  lineHeight: 1.4,
+                                  margin: 0,
                                   wordBreak: 'break-word',
                                 }}
                               >
                                 {entry.content}
                               </p>
-                            ) : null}
-
-                            {entry.type === 'sleep' && entry.hours != null && (
-                              <p
-                                style={{
-                                  color: '#2c5ea8',
-                                  fontSize: '0.875rem',
-                                  fontWeight: 600,
-                                  margin: entry.content ? '0 0 6px' : '2px 0 6px',
-                                }}
-                              >
-                                {entry.hours} hours
+                            ) : (
+                              <p style={{ fontSize: '14px', color: meta.color, margin: 0 }}>
+                                {meta.label}
                               </p>
-                            )}
-
-                            {(entry.type === 'symptom' || entry.type === 'stress') && entry.severity != null && (
-                              <div style={{ marginBottom: '2px' }}>
-                                <SeverityDots value={entry.severity} />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Time */}
-                          <span
-                            style={{
-                              color: '#b8b0a4',
-                              fontSize: '0.7rem',
-                              whiteSpace: 'nowrap',
-                              flexShrink: 0,
-                              marginTop: '3px',
-                            }}
-                          >
-                            {formatTime(entry.created_at)}
-                          </span>
+                            )
+                          )}
+                          {(entry.type === 'symptom' || entry.type === 'stress') && entry.severity != null && (
+                            <SeverityDots value={entry.severity} color={meta.color} />
+                          )}
                         </div>
-                      )
-                    })}
-                  </div>
+
+                        {/* Time */}
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: '#8a8a7e',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                            marginLeft: 'auto',
+                          }}
+                        >
+                          {formatTime(entry.created_at)}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               ))}
             </div>
