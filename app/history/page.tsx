@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
+import AppHeader from '../components/AppHeader'
 
 interface Log {
   id: string
@@ -90,7 +91,7 @@ function dayLabel(dateStr: string): string {
 
   if (sameDay(d, today)) return 'Today'
   if (sameDay(d, yesterday)) return 'Yesterday'
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()
 }
 
 function formatTime(dateStr: string): string {
@@ -134,6 +135,10 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [userInitial, setUserInitial] = useState('?')
+
+  const todayFormatted = new Date().toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  })
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -181,311 +186,230 @@ export default function HistoryPage() {
           opacity: 0;
           animation: cardIn 0.35s cubic-bezier(0.22,1,0.36,1) forwards;
         }
-        .nav-btn {
-          transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-        }
-
-        @media (max-width: 640px) {
-          .history-header { flex-wrap: wrap; gap: 12px; }
-          .history-header-right { flex-shrink: 0; }
-        }
       `}</style>
 
+      <AppHeader pageName="History" userInitial={userInitial} />
+
       <main
-        className="min-h-screen flex flex-col items-center px-5 pt-14 pb-20"
-        style={{ backgroundColor: '#f5f0e8', fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)" }}
+        style={{
+          minHeight: '100vh',
+          backgroundColor: '#f5f0e8',
+          fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+          paddingTop: '116px',
+          paddingBottom: '80px',
+          paddingLeft: '20px',
+          paddingRight: '20px',
+        }}
       >
-        {/* ── Header ── */}
-        <div className="w-full max-w-md mb-10 fade-in-up">
-          <div className="history-header flex items-start justify-between">
-            <div>
-              <h1
+        <div style={{ maxWidth: '448px', margin: '0 auto' }}>
+
+          {/* ── Today's date ── */}
+          <p
+            className="fade-in-up"
+            style={{
+              fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+              fontStyle: 'italic',
+              fontSize: '18px',
+              color: '#8a8a7e',
+              margin: '0 0 28px',
+            }}
+          >
+            {todayFormatted}
+          </p>
+
+          {/* ── Loading ── */}
+          {loading && (
+            <div style={{ display: 'flex', gap: '9px', marginTop: '72px', justifyContent: 'center' }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="dot" style={{ animationDelay: `${i * 0.22}s` }} />
+              ))}
+            </div>
+          )}
+
+          {/* ── Error ── */}
+          {!loading && error && (
+            <div
+              className="fade-in-up"
+              style={{
+                backgroundColor: '#fff8f6',
+                borderRadius: '16px',
+                padding: '24px',
+                border: '1px solid #fdd5cc',
+                textAlign: 'center',
+              }}
+            >
+              <p style={{ color: '#c0392b', fontSize: '0.9rem', margin: 0 }}>{error}</p>
+            </div>
+          )}
+
+          {/* ── Empty State ── */}
+          {!loading && !error && groups.length === 0 && (
+            <div
+              className="fade-in-up"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                paddingTop: '60px',
+                textAlign: 'center',
+              }}
+            >
+              <svg width="72" height="72" viewBox="0 0 72 72" fill="none" style={{ marginBottom: '24px' }}>
+                <circle cx="36" cy="36" r="35" stroke="rgba(30,77,53,0.15)" strokeWidth="1.5" />
+                <line x1="36" y1="22" x2="36" y2="50" stroke="rgba(30,77,53,0.3)" strokeWidth="2" strokeLinecap="round" />
+                <line x1="22" y1="36" x2="50" y2="36" stroke="rgba(30,77,53,0.3)" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              <h3
                 style={{
                   fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
                   color: '#1e4d35',
-                  fontSize: '2.25rem',
+                  fontSize: '1.25rem',
                   fontWeight: 600,
-                  letterSpacing: '-0.01em',
-                  lineHeight: 1.15,
-                  margin: 0,
+                  margin: '0 0 10px',
                 }}
               >
-                History
-              </h1>
-              <p
-                style={{
-                  color: '#7a9185',
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  marginTop: '5px',
-                  fontWeight: 400,
-                }}
-              >
-                All your entries
+                Nothing logged yet
+              </h3>
+              <p style={{ color: '#8a8a7e', fontSize: '0.875rem', lineHeight: 1.7, margin: '0 0 28px' }}>
+                Start by logging a meal or symptom
               </p>
-            </div>
-            <div className="history-header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Link href="/log">
                 <button
-                  className="nav-btn"
                   style={{
-                    backgroundColor: 'transparent',
-                    color: '#1e4d35',
-                    fontSize: '0.8125rem',
-                    letterSpacing: '0.04em',
-                    padding: '10px 22px',
-                    borderRadius: '100px',
-                    border: '1px solid #c8bfb0',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontWeight: 500,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#1e4d35'
-                    e.currentTarget.style.color = '#f5f0e8'
-                    e.currentTarget.style.borderColor = '#1e4d35'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                    e.currentTarget.style.color = '#1e4d35'
-                    e.currentTarget.style.borderColor = '#c8bfb0'
-                  }}
-                >
-                  ← Log
-                </button>
-              </Link>
-              <Link href="/profile">
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
                     backgroundColor: '#1e4d35',
                     color: '#f5f0e8',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    borderRadius: '100px',
+                    padding: '12px 28px',
                     fontSize: '0.875rem',
                     fontWeight: 600,
+                    border: 'none',
                     cursor: 'pointer',
-                    fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                    boxShadow: '0 2px 10px rgba(30,77,53,0.18)',
-                    flexShrink: 0,
+                    fontFamily: 'inherit',
                   }}
-                  title="View profile"
                 >
-                  {userInitial}
-                </div>
+                  Log Something
+                </button>
               </Link>
             </div>
-          </div>
-          <div style={{ width: '100%', height: '1px', backgroundColor: '#d6cfc4', marginTop: '24px' }} />
-        </div>
+          )}
 
-        {/* ── Loading ── */}
-        {loading && (
-          <div style={{ display: 'flex', gap: '9px', marginTop: '72px' }}>
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="dot" style={{ animationDelay: `${i * 0.22}s` }} />
-            ))}
-          </div>
-        )}
+          {/* ── Day Groups ── */}
+          {!loading && !error && groups.length > 0 && (
+            <div className="fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              {groups.map((group, gi) => (
+                <div key={gi}>
+                  {/* Day label */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <span
+                      style={{
+                        color: '#8a8a7e',
+                        fontSize: '11px',
+                        fontWeight: 500,
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                        fontVariant: 'small-caps',
+                      }}
+                    >
+                      {group.label}
+                    </span>
+                    <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(30,77,53,0.1)' }} />
+                  </div>
 
-        {/* ── Error ── */}
-        {!loading && error && (
-          <div
-            className="w-full max-w-md fade-in-up"
-            style={{
-              backgroundColor: '#fff8f6',
-              borderRadius: '22px',
-              padding: '32px',
-              border: '1px solid #fdd5cc',
-              textAlign: 'center',
-            }}
-          >
-            <p style={{ color: '#c0392b', fontSize: '0.9rem', margin: 0 }}>{error}</p>
-          </div>
-        )}
-
-        {/* ── Empty State ── */}
-        {!loading && !error && groups.length === 0 && (
-          <div
-            className="w-full max-w-md fade-in-up"
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '26px',
-              padding: '48px 32px',
-              border: '1px solid #e4ddd2',
-              textAlign: 'center',
-              boxShadow: '0 6px 30px rgba(30,77,53,0.06)',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '2.5rem',
-                lineHeight: 1,
-                margin: '0 auto 20px',
-              }}
-            >
-              📋
-            </div>
-            <h3
-              style={{
-                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                color: '#1e4d35',
-                fontSize: '1.25rem',
-                fontWeight: 600,
-                margin: '0 0 10px',
-              }}
-            >
-              Nothing logged yet
-            </h3>
-            <p style={{ color: '#9aada5', fontSize: '0.875rem', lineHeight: 1.7, margin: '0 0 28px' }}>
-              Start by logging a meal, symptom, sleep or stress. Your entries will appear here.
-            </p>
-            <Link href="/log">
-              <button
-                style={{
-                  backgroundColor: '#1e4d35',
-                  color: '#f5f0e8',
-                  borderRadius: '14px',
-                  padding: '13px 28px',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  letterSpacing: '0.02em',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#163b28' }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#1e4d35' }}
-              >
-                Log Something
-              </button>
-            </Link>
-          </div>
-        )}
-
-        {/* ── Day Groups ── */}
-        {!loading && !error && groups.length > 0 && (
-          <div className="w-full max-w-md fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-            {groups.map((group, gi) => (
-              <div key={gi}>
-                {/* Day header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                  <span
-                    style={{
-                      color: '#1e4d35',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.14em',
-                      textTransform: 'uppercase',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {group.label}
-                  </span>
-                  <div style={{ flex: 1, height: '1px', backgroundColor: '#d6cfc4' }} />
-                </div>
-
-                {/* Entry cards */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {group.entries.map((entry, ei) => {
-                    const meta = TYPE_META[entry.type]
-                    return (
-                      <div
-                        key={entry.id}
-                        className="entry-card"
-                        style={{
-                          animationDelay: `${(gi * 3 + ei) * 0.05}s`,
-                          backgroundColor: '#ffffff',
-                          borderRadius: '18px',
-                          padding: '16px 18px',
-                          border: '1px solid #e4ddd2',
-                          boxShadow: '0 2px 10px rgba(30,77,53,0.04)',
-                          display: 'flex',
-                          gap: '14px',
-                          alignItems: 'flex-start',
-                        }}
-                      >
-                        {/* Icon badge */}
+                  {/* Entry cards */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {group.entries.map((entry, ei) => {
+                      const meta = TYPE_META[entry.type]
+                      return (
                         <div
+                          key={entry.id}
+                          className="entry-card"
                           style={{
-                            width: '34px',
-                            height: '34px',
-                            borderRadius: '10px',
-                            backgroundColor: meta.bg,
-                            color: meta.iconColor,
+                            animationDelay: `${(gi * 3 + ei) * 0.05}s`,
+                            backgroundColor: '#ffffff',
+                            borderRadius: '12px',
+                            padding: '16px 20px',
+                            border: '1px solid rgba(30,77,53,0.1)',
+                            boxShadow: '0 2px 12px rgba(30,77,53,0.06)',
                             display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                            marginTop: '1px',
+                            gap: '14px',
+                            alignItems: 'flex-start',
                           }}
                         >
-                          {meta.icon}
+                          {/* Icon badge */}
+                          <div
+                            style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '50%',
+                              backgroundColor: meta.bg,
+                              color: meta.iconColor,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {meta.icon}
+                          </div>
+
+                          {/* Content */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {entry.content ? (
+                              <p
+                                style={{
+                                  color: '#2c3e30',
+                                  fontSize: '0.9rem',
+                                  lineHeight: 1.55,
+                                  margin: '0 0 6px',
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                {entry.content}
+                              </p>
+                            ) : null}
+
+                            {entry.type === 'sleep' && entry.hours != null && (
+                              <p
+                                style={{
+                                  color: '#2c5ea8',
+                                  fontSize: '0.875rem',
+                                  fontWeight: 600,
+                                  margin: entry.content ? '0 0 6px' : '2px 0 6px',
+                                }}
+                              >
+                                {entry.hours} hours
+                              </p>
+                            )}
+
+                            {(entry.type === 'symptom' || entry.type === 'stress') && entry.severity != null && (
+                              <div style={{ marginBottom: '2px' }}>
+                                <SeverityDots value={entry.severity} />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Time */}
+                          <span
+                            style={{
+                              color: '#b8b0a4',
+                              fontSize: '0.7rem',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0,
+                              marginTop: '3px',
+                            }}
+                          >
+                            {formatTime(entry.created_at)}
+                          </span>
                         </div>
-
-                        {/* Content */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {/* Main text */}
-                          {(entry.content) ? (
-                            <p
-                              style={{
-                                color: '#2c3e30',
-                                fontSize: '0.9rem',
-                                lineHeight: 1.55,
-                                margin: '0 0 8px',
-                                wordBreak: 'break-word',
-                              }}
-                            >
-                              {entry.content}
-                            </p>
-                          ) : null}
-
-                          {/* Sleep hours */}
-                          {entry.type === 'sleep' && entry.hours != null && (
-                            <p
-                              style={{
-                                color: '#2c5ea8',
-                                fontSize: '0.875rem',
-                                fontWeight: 600,
-                                margin: entry.content ? '0 0 8px' : '2px 0 8px',
-                              }}
-                            >
-                              {entry.hours} hours
-                            </p>
-                          )}
-
-                          {/* Severity dots */}
-                          {(entry.type === 'symptom' || entry.type === 'stress') && entry.severity != null && (
-                            <div style={{ marginBottom: '2px' }}>
-                              <SeverityDots value={entry.severity} />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Time */}
-                        <span
-                          style={{
-                            color: '#b8b0a4',
-                            fontSize: '0.7rem',
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0,
-                            marginTop: '3px',
-                          }}
-                        >
-                          {formatTime(entry.created_at)}
-                        </span>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </main>
     </>
   )

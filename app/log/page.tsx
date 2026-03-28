@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
+import AppHeader from '../components/AppHeader'
 
 type LogType = 'meal' | 'symptom' | 'sleep' | 'stress' | 'supplement'
 
@@ -11,6 +11,8 @@ const LOG_TYPES = [
     type: 'meal' as LogType,
     label: 'Meal',
     subtitle: 'What you ate',
+    iconBg: '#e8f0eb',
+    iconColor: '#1e6641',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
@@ -23,6 +25,8 @@ const LOG_TYPES = [
     type: 'symptom' as LogType,
     label: 'Symptom',
     subtitle: 'How you feel',
+    iconBg: '#fde8e8',
+    iconColor: '#c0392b',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -33,6 +37,8 @@ const LOG_TYPES = [
     type: 'sleep' as LogType,
     label: 'Sleep',
     subtitle: 'Rest quality',
+    iconBg: '#e8f0fb',
+    iconColor: '#2c5ea8',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
@@ -43,6 +49,8 @@ const LOG_TYPES = [
     type: 'stress' as LogType,
     label: 'Stress',
     subtitle: 'Mental load',
+    iconBg: '#fef3e2',
+    iconColor: '#b07d00',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
@@ -56,6 +64,8 @@ const LOG_TYPES = [
     type: 'supplement' as LogType,
     label: 'Supplement',
     subtitle: 'What you took',
+    iconBg: '#f0ebfe',
+    iconColor: '#6b4f9e',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="9" width="18" height="6" rx="3" />
@@ -65,7 +75,14 @@ const LOG_TYPES = [
   },
 ]
 
-export default function Home() {
+const CARD_STYLE = {
+  backgroundColor: '#ffffff',
+  borderRadius: '16px',
+  border: '1px solid rgba(30,77,53,0.1)',
+  boxShadow: '0 2px 12px rgba(30,77,53,0.06)',
+}
+
+export default function LogPage() {
   const [activeLog, setActiveLog] = useState<LogType | null>(null)
   const [content, setContent] = useState('')
   const [severity, setSeverity] = useState(3)
@@ -124,7 +141,7 @@ export default function Home() {
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.96); }
+          from { opacity: 0; transform: scale(0.97); }
           to   { opacity: 1; transform: scale(1); }
         }
         @keyframes checkPop {
@@ -132,27 +149,26 @@ export default function Home() {
           70%  { transform: scale(1.12); }
           100% { opacity: 1; transform: scale(1); }
         }
-        .fade-in-up  { animation: fadeInUp 0.45s cubic-bezier(0.22,1,0.36,1) both; }
-        .scale-in    { animation: scaleIn  0.35s cubic-bezier(0.22,1,0.36,1) both; }
-        .check-pop   { animation: checkPop 0.55s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .fade-in-up { animation: fadeInUp 0.45s cubic-bezier(0.22,1,0.36,1) both; }
+        .scale-in   { animation: scaleIn  0.35s cubic-bezier(0.22,1,0.36,1) both; }
+        .check-pop  { animation: checkPop 0.55s cubic-bezier(0.34,1.56,0.64,1) both; }
 
-        .log-card {
-          transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+        .log-type-card {
+          transition: transform 0.22s ease, box-shadow 0.22s ease;
+          cursor: pointer;
         }
-        .log-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 16px 40px rgba(30,77,53,0.10);
-          border-color: #b8d4c4 !important;
+        .log-type-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 32px rgba(30,77,53,0.12) !important;
         }
-        .log-card:active { transform: translateY(-1px); }
+        .log-type-card:active { transform: translateY(-1px); }
 
-        textarea, input[type="number"] {
+        textarea, input[type="number"], input[type="text"] {
           outline: none;
-          transition: border-color 0.2s ease, background-color 0.2s ease;
+          transition: border-color 0.2s ease;
         }
-        textarea:focus, input[type="number"]:focus {
+        textarea:focus, input[type="number"]:focus, input[type="text"]:focus {
           border-color: #1e4d35 !important;
-          background-color: #ffffff !important;
         }
 
         input[type="range"] {
@@ -163,14 +179,13 @@ export default function Home() {
           width: 100%;
         }
         input[type="range"]::-webkit-slider-runnable-track {
-          background: #d4e8dc;
+          background: rgba(30,77,53,0.15);
           height: 4px;
           border-radius: 2px;
         }
         input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none;
-          width: 22px;
-          height: 22px;
+          width: 22px; height: 22px;
           border-radius: 50%;
           background: #1e4d35;
           margin-top: -9px;
@@ -179,254 +194,110 @@ export default function Home() {
         }
         input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
 
-        .submit-btn {
-          transition: background-color 0.2s ease, transform 0.15s ease;
-        }
+        .submit-btn { transition: background-color 0.2s ease, transform 0.15s ease; }
         .submit-btn:not(:disabled):hover  { background-color: #163b28 !important; }
         .submit-btn:not(:disabled):active { transform: scale(0.98); }
-
-        .back-btn { transition: color 0.15s ease; }
-        .back-btn:hover { color: #1e4d35 !important; }
 
         @media (max-width: 640px) {
           .log-grid { grid-template-columns: 1fr !important; }
           .log-grid > * { grid-column: span 1 !important; }
-          .nav-buttons { flex-wrap: wrap !important; gap: 6px !important; }
-          .nav-buttons a > button { padding: 8px 14px !important; font-size: 0.75rem !important; }
         }
       `}</style>
 
-      <main
-        className="min-h-screen flex flex-col items-center px-5 pt-14 pb-20"
-        style={{ backgroundColor: '#f5f0e8', fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)" }}
-      >
-        {/* ── Header ── */}
-        <div className="w-full max-w-md mb-12 fade-in-up" style={{ position: 'relative' }}>
-          {/* Profile icon */}
-          <Link href="/profile">
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                backgroundColor: '#1e4d35',
-                color: '#f5f0e8',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                boxShadow: '0 2px 10px rgba(30,77,53,0.18)',
-                flexShrink: 0,
-              }}
-              title="View profile"
-            >
-              {userInitial}
-            </div>
-          </Link>
+      <AppHeader pageName="Log" userInitial={userInitial} />
 
-          <div style={{ textAlign: 'center' }}>
-            <h1
-              style={{
-                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                color: '#1e4d35',
-                fontSize: '2.25rem',
-                fontWeight: 600,
-                letterSpacing: '-0.01em',
-                lineHeight: 1.15,
-                margin: 0,
-              }}
-            >
-              GutBut
-            </h1>
-            <p
-              style={{
-                color: '#7a9185',
-                fontSize: '0.75rem',
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-                marginTop: '5px',
-                marginBottom: '20px',
-                fontWeight: 400,
-              }}
-            >
-              Gut Health Tracker
-            </p>
-            <div className="nav-buttons" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-              <Link href="/history">
-                <button
-                  className="back-btn"
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#1e4d35',
-                    fontSize: '0.8125rem',
-                    letterSpacing: '0.04em',
-                    padding: '10px 22px',
-                    borderRadius: '100px',
-                    border: '1px solid #c8bfb0',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontWeight: 500,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#1e4d35'
-                    e.currentTarget.style.color = '#f5f0e8'
-                    e.currentTarget.style.borderColor = '#1e4d35'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                    e.currentTarget.style.color = '#1e4d35'
-                    e.currentTarget.style.borderColor = '#c8bfb0'
-                  }}
-                >
-                  History
-                </button>
-              </Link>
-              <Link href="/experiments">
-                <button
-                  className="back-btn"
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#1e4d35',
-                    fontSize: '0.8125rem',
-                    letterSpacing: '0.04em',
-                    padding: '10px 22px',
-                    borderRadius: '100px',
-                    border: '1px solid #c8bfb0',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontWeight: 500,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#1e4d35'
-                    e.currentTarget.style.color = '#f5f0e8'
-                    e.currentTarget.style.borderColor = '#1e4d35'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                    e.currentTarget.style.color = '#1e4d35'
-                    e.currentTarget.style.borderColor = '#c8bfb0'
-                  }}
-                >
-                  Experiments
-                </button>
-              </Link>
-              <Link href="/insights">
-                <button
-                  className="back-btn"
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#1e4d35',
-                    fontSize: '0.8125rem',
-                    letterSpacing: '0.04em',
-                    padding: '10px 22px',
-                    borderRadius: '100px',
-                    border: '1px solid #c8bfb0',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontWeight: 500,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#1e4d35'
-                    e.currentTarget.style.color = '#f5f0e8'
-                    e.currentTarget.style.borderColor = '#1e4d35'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                    e.currentTarget.style.color = '#1e4d35'
-                    e.currentTarget.style.borderColor = '#c8bfb0'
-                  }}
-                >
-                  Insights
-                </button>
-              </Link>
-              <Link href="/my-info">
-                <button
-                  className="back-btn"
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#1e4d35',
-                    fontSize: '0.8125rem',
-                    letterSpacing: '0.04em',
-                    padding: '10px 22px',
-                    borderRadius: '100px',
-                    border: '1px solid #c8bfb0',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontWeight: 500,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#1e4d35'
-                    e.currentTarget.style.color = '#f5f0e8'
-                    e.currentTarget.style.borderColor = '#1e4d35'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                    e.currentTarget.style.color = '#1e4d35'
-                    e.currentTarget.style.borderColor = '#c8bfb0'
-                  }}
-                >
-                  My Info
-                </button>
-              </Link>
-            </div>
-          </div>
-          <div style={{ width: '100%', height: '1px', backgroundColor: '#d6cfc4', marginTop: '24px' }} />
-        </div>
+      <main
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          paddingTop: '116px',
+          paddingBottom: '80px',
+          paddingLeft: '20px',
+          paddingRight: '20px',
+          backgroundColor: '#f5f0e8',
+          fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+        }}
+      >
 
         {/* ── Log Type Grid ── */}
         {!activeLog && !submitted && (
           <div className="w-full max-w-md fade-in-up">
-            <p
+            <h1
               style={{
+                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
                 color: '#1e4d35',
-                fontSize: '0.7rem',
-                letterSpacing: '0.16em',
-                textTransform: 'uppercase',
+                fontSize: '28px',
                 fontWeight: 600,
-                marginBottom: '18px',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.2,
+                margin: '0 0 32px',
               }}
             >
               What would you like to log?
-            </p>
-            <div className="log-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              {LOG_TYPES.map(({ type, label, subtitle, icon }) => (
+            </h1>
+
+            <div
+              className="log-grid"
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}
+            >
+              {LOG_TYPES.map(({ type, label, subtitle, icon, iconBg, iconColor }) => (
                 <button
                   key={type}
                   onClick={() => setActiveLog(type)}
-                  className="log-card"
+                  className="log-type-card"
                   style={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e4ddd2',
-                    borderRadius: '22px',
-                    padding: '26px 20px',
+                    ...CARD_STYLE,
+                    padding: '28px 24px',
                     textAlign: 'left',
-                    cursor: 'pointer',
                     fontFamily: 'inherit',
                     gridColumn: type === 'supplement' ? 'span 2' : undefined,
+                    background: '#ffffff',
                   }}
                 >
-                  <div style={{ color: type === 'supplement' ? '#6b4f9e' : '#1e4d35', marginBottom: '16px' }}>{icon}</div>
-                  <div style={{ color: '#1e4d35', fontSize: '1rem', fontWeight: 600, marginBottom: '4px' }}>
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      backgroundColor: iconBg,
+                      color: iconColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '16px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {icon}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                      color: '#1a1a18',
+                      fontSize: '20px',
+                      fontWeight: 600,
+                      marginBottom: '4px',
+                      lineHeight: 1.2,
+                    }}
+                  >
                     {label}
                   </div>
-                  <div style={{ color: '#9aada5', fontSize: '0.75rem', fontWeight: 400 }}>{subtitle}</div>
+                  <div style={{ color: '#8a8a7e', fontSize: '13px', fontWeight: 400 }}>
+                    {subtitle}
+                  </div>
                 </button>
               ))}
             </div>
 
             <p
               style={{
-                color: '#b8b0a4',
+                color: '#8a8a7e',
                 fontSize: '0.75rem',
-                letterSpacing: '0.05em',
                 textAlign: 'center',
-                marginTop: '36px',
+                marginTop: '32px',
+                fontStyle: 'italic',
               }}
             >
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -439,39 +310,36 @@ export default function Home() {
           <div className="w-full max-w-md scale-in">
             <button
               onClick={() => setActiveLog(null)}
-              className="back-btn"
               style={{
-                color: '#9aada5',
+                color: '#8a8a7e',
                 fontSize: '0.8125rem',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 padding: 0,
-                marginBottom: '28px',
+                marginBottom: '24px',
+                transition: 'color 0.15s ease',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#1e4d35' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8a7e' }}
             >
               ← Back
             </button>
 
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '26px',
-                padding: '32px',
-                border: '1px solid #e4ddd2',
-                boxShadow: '0 6px 30px rgba(30,77,53,0.07)',
-              }}
-            >
+            <div style={{ ...CARD_STYLE, padding: '28px' }}>
               {/* Form header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '30px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '28px' }}>
                 <div
                   style={{
-                    color: activeLog === 'supplement' ? '#6b4f9e' : '#1e4d35',
-                    backgroundColor: activeLog === 'supplement' ? '#f0ebfa' : '#edf5f0',
-                    borderRadius: '14px',
-                    padding: '11px',
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    backgroundColor: LOG_TYPES.find(l => l.type === activeLog)?.iconBg,
+                    color: LOG_TYPES.find(l => l.type === activeLog)?.iconColor,
                     display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     flexShrink: 0,
                   }}
                 >
@@ -481,7 +349,7 @@ export default function Home() {
                   <h2
                     style={{
                       fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                      color: '#1e4d35',
+                      color: '#1a1a18',
                       fontSize: '1.375rem',
                       fontWeight: 600,
                       margin: 0,
@@ -490,7 +358,7 @@ export default function Home() {
                   >
                     Log {activeLog.charAt(0).toUpperCase() + activeLog.slice(1)}
                   </h2>
-                  <p style={{ color: '#9aada5', fontSize: '0.8rem', margin: '3px 0 0' }}>
+                  <p style={{ color: '#8a8a7e', fontSize: '0.8rem', margin: '3px 0 0' }}>
                     {activeLogData?.subtitle}
                   </p>
                 </div>
@@ -501,14 +369,14 @@ export default function Home() {
                 <textarea
                   style={{
                     width: '100%',
-                    border: '1px solid #e4ddd2',
-                    borderRadius: '14px',
-                    padding: '14px 16px',
+                    border: '1px solid rgba(30,77,53,0.15)',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
                     fontSize: '0.9rem',
                     marginBottom: '20px',
                     fontFamily: 'inherit',
-                    color: '#1e4d35',
-                    backgroundColor: '#faf8f4',
+                    color: '#1a1a18',
+                    backgroundColor: '#ffffff',
                     resize: 'none',
                     boxSizing: 'border-box',
                     lineHeight: 1.65,
@@ -527,14 +395,14 @@ export default function Home() {
                   type="number"
                   style={{
                     width: '100%',
-                    border: '1px solid #e4ddd2',
-                    borderRadius: '14px',
-                    padding: '14px 16px',
+                    border: '1px solid rgba(30,77,53,0.15)',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
                     fontSize: '0.9rem',
                     marginBottom: '20px',
                     fontFamily: 'inherit',
-                    color: '#1e4d35',
-                    backgroundColor: '#faf8f4',
+                    color: '#1a1a18',
+                    backgroundColor: '#ffffff',
                     boxSizing: 'border-box',
                     display: 'block',
                   }}
@@ -548,13 +416,13 @@ export default function Home() {
               {(activeLog === 'symptom' || activeLog === 'stress') && (
                 <div style={{ marginBottom: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <label style={{ color: '#7a9185', fontSize: '0.8125rem', fontWeight: 500 }}>Severity</label>
+                    <label style={{ color: '#5a5a52', fontSize: '0.8125rem', fontWeight: 500 }}>Severity</label>
                     <span
                       style={{
                         color: '#1e4d35',
                         fontSize: '0.8125rem',
                         fontWeight: 600,
-                        backgroundColor: '#edf5f0',
+                        backgroundColor: '#e8f0eb',
                         padding: '3px 12px',
                         borderRadius: '100px',
                       }}
@@ -570,8 +438,8 @@ export default function Home() {
                     onChange={(e) => setSeverity(parseInt(e.target.value))}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                    <span style={{ color: '#c0c8c4', fontSize: '0.7rem' }}>Mild</span>
-                    <span style={{ color: '#c0c8c4', fontSize: '0.7rem' }}>Severe</span>
+                    <span style={{ color: '#8a8a7e', fontSize: '0.7rem' }}>Mild</span>
+                    <span style={{ color: '#8a8a7e', fontSize: '0.7rem' }}>Severe</span>
                   </div>
                 </div>
               )}
@@ -582,14 +450,14 @@ export default function Home() {
                   <textarea
                     style={{
                       width: '100%',
-                      border: '1px solid #e4ddd2',
-                      borderRadius: '14px',
-                      padding: '14px 16px',
+                      border: '1px solid rgba(30,77,53,0.15)',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
                       fontSize: '0.9rem',
                       marginBottom: '12px',
                       fontFamily: 'inherit',
-                      color: '#1e4d35',
-                      backgroundColor: '#faf8f4',
+                      color: '#1a1a18',
+                      backgroundColor: '#ffffff',
                       resize: 'none',
                       boxSizing: 'border-box',
                       lineHeight: 1.65,
@@ -603,14 +471,14 @@ export default function Home() {
                   <textarea
                     style={{
                       width: '100%',
-                      border: '1px solid #e4ddd2',
-                      borderRadius: '14px',
-                      padding: '14px 16px',
+                      border: '1px solid rgba(30,77,53,0.15)',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
                       fontSize: '0.9rem',
                       marginBottom: '20px',
                       fontFamily: 'inherit',
-                      color: '#1e4d35',
-                      backgroundColor: '#faf8f4',
+                      color: '#1a1a18',
+                      backgroundColor: '#ffffff',
                       resize: 'none',
                       boxSizing: 'border-box',
                       lineHeight: 1.65,
@@ -629,14 +497,14 @@ export default function Home() {
                 <textarea
                   style={{
                     width: '100%',
-                    border: '1px solid #e4ddd2',
-                    borderRadius: '14px',
-                    padding: '14px 16px',
+                    border: '1px solid rgba(30,77,53,0.15)',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
                     fontSize: '0.9rem',
                     marginBottom: '20px',
                     fontFamily: 'inherit',
-                    color: '#1e4d35',
-                    backgroundColor: '#faf8f4',
+                    color: '#1a1a18',
+                    backgroundColor: '#ffffff',
                     resize: 'none',
                     boxSizing: 'border-box',
                     lineHeight: 1.65,
@@ -656,9 +524,9 @@ export default function Home() {
                 style={{
                   width: '100%',
                   backgroundColor: loading ? '#8eb8a3' : '#1e4d35',
-                  color: '#f5f0e8',
-                  borderRadius: '14px',
-                  padding: '15px',
+                  color: '#ffffff',
+                  borderRadius: '100px',
+                  padding: '13px 28px',
                   fontSize: '0.9375rem',
                   fontWeight: 600,
                   border: 'none',
@@ -679,27 +547,18 @@ export default function Home() {
             <div
               className="check-pop"
               style={{
-                width: '76px',
-                height: '76px',
+                width: '72px',
+                height: '72px',
                 borderRadius: '50%',
-                backgroundColor: '#edf5f0',
+                backgroundColor: '#e8f0eb',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 24px',
+                margin: '0 auto 20px',
                 boxShadow: '0 8px 28px rgba(30,77,53,0.12)',
               }}
             >
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#1e4d35"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1e4d35" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
@@ -707,15 +566,15 @@ export default function Home() {
               style={{
                 fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
                 color: '#1e4d35',
-                fontSize: '1.4rem',
+                fontSize: '1.5rem',
                 fontWeight: 600,
-                margin: '0 0 10px',
+                margin: '0 0 8px',
               }}
             >
-              Entry saved
+              Logged.
             </h3>
-            <p style={{ color: '#9aada5', fontSize: '0.875rem', lineHeight: 1.6 }}>
-              Keep tracking. Patterns take shape over time.
+            <p style={{ color: '#8a8a7e', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>
+              Keep it up.
             </p>
           </div>
         )}

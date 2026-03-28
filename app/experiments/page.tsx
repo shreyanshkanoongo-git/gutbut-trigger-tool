@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
+import AppHeader from '../components/AppHeader'
 
 interface Experiment {
   id: string
@@ -354,83 +354,28 @@ export default function ExperimentsPage() {
         .overlay-close-btn:hover { background-color: rgba(255,255,255,0.12) !important; }
 
         @media (max-width: 640px) {
-          .exp-header { flex-wrap: nowrap; align-items: center; }
-          .exp-header-left { min-width: 0; }
-          .exp-header-right { flex-shrink: 0; margin-left: 12px; }
           .share-card { margin: 0 16px; }
         }
       `}</style>
 
+      <AppHeader pageName="Experiments" userInitial={userInitial} />
+
       <main
-        className="min-h-screen flex flex-col items-center px-5 pt-14 pb-20"
-        style={{ backgroundColor: '#f5f0e8', fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)" }}
+        style={{
+          minHeight: '100vh',
+          backgroundColor: '#f5f0e8',
+          fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+          paddingTop: '116px',
+          paddingBottom: '80px',
+          paddingLeft: '20px',
+          paddingRight: '20px',
+        }}
       >
-        {/* ── Header ── */}
-        <div className="w-full max-w-md mb-10 fade-in-up">
-          <div className="exp-header flex items-start justify-between">
-            <div className="exp-header-left">
-              <h1 style={{
-                fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                color: '#1e4d35', fontSize: '2.25rem', fontWeight: 600,
-                letterSpacing: '-0.01em', lineHeight: 1.15, margin: 0,
-              }}>
-                Experiments
-              </h1>
-              <p style={{
-                color: '#7a9185', fontSize: '0.75rem', letterSpacing: '0.14em',
-                textTransform: 'uppercase', marginTop: '5px', fontWeight: 400,
-              }}>
-                Test your triggers
-              </p>
-            </div>
-            <div className="exp-header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Link href="/log">
-                <button
-                  className="nav-btn"
-                  style={{
-                    backgroundColor: 'transparent', color: '#1e4d35',
-                    fontSize: '0.8125rem', letterSpacing: '0.04em',
-                    padding: '10px 22px', borderRadius: '100px',
-                    border: '1px solid #c8bfb0', cursor: 'pointer',
-                    fontFamily: 'inherit', fontWeight: 500,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#1e4d35'
-                    e.currentTarget.style.color = '#f5f0e8'
-                    e.currentTarget.style.borderColor = '#1e4d35'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                    e.currentTarget.style.color = '#1e4d35'
-                    e.currentTarget.style.borderColor = '#c8bfb0'
-                  }}
-                >
-                  ← Log
-                </button>
-              </Link>
-              <Link href="/profile">
-                <div
-                  style={{
-                    width: '36px', height: '36px', borderRadius: '50%',
-                    backgroundColor: '#1e4d35', color: '#f5f0e8',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
-                    fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                    boxShadow: '0 2px 10px rgba(30,77,53,0.18)', flexShrink: 0,
-                  }}
-                  title="View profile"
-                >
-                  {userInitial}
-                </div>
-              </Link>
-            </div>
-          </div>
-          <div style={{ width: '100%', height: '1px', backgroundColor: '#d6cfc4', marginTop: '24px' }} />
-        </div>
+        <div style={{ maxWidth: '448px', margin: '0 auto' }}>
 
         {/* ── Loading ── */}
         {loading && (
-          <div style={{ display: 'flex', gap: '9px', marginTop: '72px' }}>
+          <div style={{ display: 'flex', gap: '9px', marginTop: '72px', justifyContent: 'center' }}>
             {[0, 1, 2].map((i) => (
               <div key={i} className="dot" style={{ animationDelay: `${i * 0.22}s` }} />
             ))}
@@ -438,14 +383,27 @@ export default function ExperimentsPage() {
         )}
 
         {!loading && (
-          <div className="w-full max-w-md fade-in-up">
+          <div className="fade-in-up">
+
+            {/* ── Page title ── */}
+            {experiments.length > 0 && (
+              <h1
+                style={{
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                  color: '#1e4d35', fontSize: '28px', fontWeight: 700,
+                  letterSpacing: '-0.01em', margin: '0 0 28px', lineHeight: 1.2,
+                }}
+              >
+                Your Experiments
+              </h1>
+            )}
 
             {/* ══ ACTIVE EXPERIMENTS ══ */}
             {activeExps.length > 0 && (
               <div style={{ marginBottom: '32px' }}>
                 <p style={{
-                  color: '#7a9185', fontSize: '0.7rem', fontWeight: 700,
-                  letterSpacing: '0.14em', textTransform: 'uppercase', margin: '0 0 14px',
+                  color: '#8a8a7e', fontSize: '11px', fontWeight: 500,
+                  letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 14px',
                 }}>
                   Active · {activeExps.length}
                 </p>
@@ -463,10 +421,10 @@ export default function ExperimentsPage() {
                         key={exp.id}
                         style={{
                           backgroundColor: '#ffffff',
-                          borderRadius: '22px',
-                          border: '1px solid #e4ddd2',
-                          borderLeft: '4px solid #1e4d35',
-                          boxShadow: '0 4px 20px rgba(30,77,53,0.07)',
+                          borderRadius: '16px',
+                          border: '1px solid rgba(30,77,53,0.1)',
+                          borderLeft: '3px solid #1e4d35',
+                          boxShadow: '0 2px 12px rgba(30,77,53,0.06)',
                           overflow: 'hidden',
                         }}
                       >
@@ -698,8 +656,8 @@ export default function ExperimentsPage() {
             {completedExps.length > 0 && (
               <div style={{ marginBottom: '32px' }}>
                 <p style={{
-                  color: '#7a9185', fontSize: '0.7rem', fontWeight: 700,
-                  letterSpacing: '0.14em', textTransform: 'uppercase', margin: '0 0 14px',
+                  color: '#8a8a7e', fontSize: '11px', fontWeight: 500,
+                  letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 14px',
                 }}>
                   Completed · {completedExps.length}
                 </p>
@@ -714,9 +672,9 @@ export default function ExperimentsPage() {
                       <div
                         key={exp.id}
                         style={{
-                          backgroundColor: '#ffffff', borderRadius: '22px',
-                          border: '1px solid #e4ddd2',
-                          boxShadow: '0 4px 20px rgba(30,77,53,0.05)',
+                          backgroundColor: '#ffffff', borderRadius: '16px',
+                          border: '1px solid rgba(30,77,53,0.1)',
+                          boxShadow: '0 2px 12px rgba(30,77,53,0.06)',
                           padding: '24px',
                         }}
                       >
@@ -820,7 +778,7 @@ export default function ExperimentsPage() {
             {/* ══ EMPTY STATE howto ══ */}
             {experiments.length === 0 && (
               <div style={{
-                backgroundColor: '#edf5f0', borderRadius: '18px',
+                backgroundColor: '#edf5f0', borderRadius: '16px',
                 padding: '20px 22px', marginBottom: '28px',
                 border: '1px solid #c8ddd0',
               }}>
@@ -834,22 +792,33 @@ export default function ExperimentsPage() {
             <div>
               {experiments.length > 0 && (
                 <p style={{
-                  color: '#7a9185', fontSize: '0.7rem', fontWeight: 700,
-                  letterSpacing: '0.14em', textTransform: 'uppercase', margin: '0 0 14px',
+                  color: '#8a8a7e', fontSize: '11px', fontWeight: 500,
+                  letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 14px',
                 }}>
                   Start New
                 </p>
               )}
+              {experiments.length === 0 && (
+                <h1
+                  style={{
+                    fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
+                    color: '#1e4d35', fontSize: '28px', fontWeight: 700,
+                    letterSpacing: '-0.01em', margin: '0 0 28px', lineHeight: 1.2,
+                  }}
+                >
+                  Your Experiments
+                </h1>
+              )}
               <div style={{
-                backgroundColor: '#ffffff', borderRadius: '26px', padding: '32px',
-                border: '1px solid #e4ddd2', boxShadow: '0 6px 30px rgba(30,77,53,0.07)',
+                backgroundColor: '#ffffff', borderRadius: '16px', padding: '24px',
+                border: '1px solid rgba(30,77,53,0.1)', boxShadow: '0 2px 12px rgba(30,77,53,0.06)',
               }}>
                 <h2 style={{
                   fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
-                  color: '#1e4d35', fontSize: '1.375rem', fontWeight: 600,
-                  margin: '0 0 24px', lineHeight: 1.2,
+                  color: '#1e4d35', fontSize: '20px', fontWeight: 600,
+                  margin: '0 0 20px', lineHeight: 1.2,
                 }}>
-                  {experiments.length === 0 ? 'Start an Experiment' : 'New Experiment'}
+                  Start a New Experiment
                 </h2>
 
                 {formError && (
@@ -861,7 +830,7 @@ export default function ExperimentsPage() {
                   </div>
                 )}
 
-                <label style={{ color: '#7a9185', fontSize: '0.8rem', fontWeight: 500, display: 'block', marginBottom: '8px' }}>
+                <label style={{ color: '#8a8a7e', fontSize: '11px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
                   Experiment name
                 </label>
                 <input
@@ -870,14 +839,14 @@ export default function ExperimentsPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={{
-                    width: '100%', border: '1px solid #e4ddd2', borderRadius: '14px',
+                    width: '100%', border: '1px solid rgba(30,77,53,0.15)', borderRadius: '10px',
                     padding: '13px 16px', fontSize: '0.9rem', marginBottom: '20px',
-                    fontFamily: 'inherit', color: '#1e4d35', backgroundColor: '#faf8f4',
+                    fontFamily: 'inherit', color: '#1e4d35', backgroundColor: '#ffffff',
                     boxSizing: 'border-box', display: 'block',
                   }}
                 />
 
-                <label style={{ color: '#7a9185', fontSize: '0.8rem', fontWeight: 500, display: 'block', marginBottom: '8px' }}>
+                <label style={{ color: '#8a8a7e', fontSize: '11px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
                   What are you testing?
                 </label>
                 <textarea
@@ -886,14 +855,14 @@ export default function ExperimentsPage() {
                   onChange={(e) => setHypothesis(e.target.value)}
                   rows={3}
                   style={{
-                    width: '100%', border: '1px solid #e4ddd2', borderRadius: '14px',
+                    width: '100%', border: '1px solid rgba(30,77,53,0.15)', borderRadius: '10px',
                     padding: '13px 16px', fontSize: '0.9rem', marginBottom: '20px',
-                    fontFamily: 'inherit', color: '#1e4d35', backgroundColor: '#faf8f4',
+                    fontFamily: 'inherit', color: '#1e4d35', backgroundColor: '#ffffff',
                     resize: 'none', boxSizing: 'border-box', lineHeight: 1.65, display: 'block',
                   }}
                 />
 
-                <label style={{ color: '#7a9185', fontSize: '0.8rem', fontWeight: 500, display: 'block', marginBottom: '10px' }}>
+                <label style={{ color: '#8a8a7e', fontSize: '11px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '10px' }}>
                   Duration
                 </label>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '28px' }}>
@@ -935,6 +904,7 @@ export default function ExperimentsPage() {
             </div>
           </div>
         )}
+        </div>
       </main>
 
       {/* ── Share Overlay ── */}
