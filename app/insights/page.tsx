@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 
 type DateRange = '7' | '14' | '30' | 'all'
+type CacheStatus = 'checking' | 'none' | 'fresh' | 'stale'
 
 interface Summary {
   totalLogs: number
@@ -94,21 +95,28 @@ const SEVERITY_STYLES: Record<
   low:    { label: 'LOW',    bg: '#edf5f0', color: '#1e4d35' },
 }
 
-// Order categories for consistent display
 const CATEGORY_ORDER: Insight['category'][] = ['food', 'sleep', 'stress', 'supplement', 'positive']
+
+function hoursAgoText(iso: string): string {
+  const hours = Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60))
+  if (hours === 0) return 'less than an hour ago'
+  return `${hours} hour${hours !== 1 ? 's' : ''} ago`
+}
 
 export default function InsightsPage() {
   const [dateRange, setDateRange] = useState<DateRange>('30')
   const [data, setData] = useState<InsightsData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [cacheStatus, setCacheStatus] = useState<CacheStatus>('checking')
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [userInitial, setUserInitial] = useState('?')
   const [userId, setUserId] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<Record<string, unknown> | null>(null)
 
+  // ── Auth + profile ──────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      console.log('[Insights] getUser result:', user?.id ?? 'null — no authenticated user')
       if (user) {
         setUserInitial((user.email?.[0] ?? '?').toUpperCase())
         setUserId(user.id)
@@ -122,40 +130,72 @@ export default function InsightsPage() {
     })
   }, [])
 
-  const fetchInsights = useCallback(async (range: DateRange, uid: string, profile: Record<string, unknown> | null) => {
-    if (!uid) {
-      console.warn('[Insights] fetchInsights called with empty uid — aborting')
-      return
-    }
-    console.log('[Insights] fetchInsights called — range:', range, 'userId:', uid)
-    setLoading(true)
-    setError('')
+  // ── Cache check ─────────────────────────────────────────────────
+  const checkCache = useCallback(async (range: DateRange, uid: string) => {
+    setCacheStatus('checking')
     setData(null)
+    setError('')
     try {
-      const res = await fetch('/api/insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dateRange: range, userId: uid, userProfile: profile }),
-      })
-      console.log('[Insights] response status:', res.status)
+      const res = await fetch(`/api/insight-cache?userId=${uid}&dateRange=${range}`)
       const json = await res.json()
-      console.log('[Insights] response body:', json)
-      if (json.error) throw new Error(json.error)
-      setData(json)
-    } catch (err) {
-      console.error('[Insights] fetch error:', err)
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
+      if (!json.cached) {
+        setCacheStatus('none')
+        return
+      }
+      const hours = (Date.now() - new Date(json.generated_at).getTime()) / (1000 * 60 * 60)
+      setData(json.result)
+      setGeneratedAt(json.generated_at)
+      setCacheStatus(hours < 6 ? 'fresh' : 'stale')
+    } catch {
+      setCacheStatus('none')
     }
   }, [])
 
   useEffect(() => {
-    console.log('[Insights] useEffect fired — userId:', userId, 'dateRange:', dateRange)
-    if (userId) fetchInsights(dateRange, userId, userProfile)
-  }, [dateRange, userId, userProfile, fetchInsights])
+    if (userId) checkCache(dateRange, userId)
+  }, [dateRange, userId, checkCache])
 
-  // Group insights by category, preserving defined order
+  // ── Run AI analysis ─────────────────────────────────────────────
+  const runAnalysis = useCallback(async () => {
+    if (!userId) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dateRange, userId, userProfile }),
+      })
+      const json = await res.json()
+      if (json.error) throw new Error(json.error)
+
+      // Write to cache
+      await fetch('/api/insight-cache', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, dateRange, result: json }),
+      })
+
+      const now = new Date().toISOString()
+      setData(json)
+      setGeneratedAt(now)
+      setCacheStatus('fresh')
+    } catch (err) {
+      console.error('[Insights] runAnalysis error:', err)
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }, [userId, dateRange, userProfile])
+
+  // ── Derived display state ────────────────────────────────────────
+  const showSpinner    = cacheStatus === 'checking' || loading
+  const showResults    = !showSpinner && !!data && !data.insufficient && (cacheStatus === 'fresh' || cacheStatus === 'stale')
+  const showReadyCard  = !showSpinner && cacheStatus === 'none'
+  const showStatusBar  = !showSpinner && cacheStatus === 'fresh' && !!generatedAt
+  const showStaleBar   = !showSpinner && cacheStatus === 'stale' && !!generatedAt
+  const showInsufficient = !showSpinner && !!data?.insufficient
+
   const grouped = data?.insights
     ? CATEGORY_ORDER.reduce<Record<string, Insight[]>>((acc, cat) => {
         const items = data.insights.filter((i) => i.category === cat)
@@ -163,7 +203,6 @@ export default function InsightsPage() {
         return acc
       }, {})
     : {}
-
   const totalPatterns = data?.insights?.length ?? 0
 
   return (
@@ -215,11 +254,39 @@ export default function InsightsPage() {
           transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
 
+        .analyse-btn {
+          transition: background-color 0.18s ease, transform 0.15s ease;
+        }
+        .analyse-btn:hover {
+          background-color: #163b28 !important;
+          transform: translateY(-2px);
+        }
+        .analyse-btn:active { transform: translateY(0); }
+
+        .fresh-link {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+          color: #5a9e7a;
+          font-size: 0.8125rem;
+          font-weight: 500;
+          padding: 0;
+          transition: color 0.15s ease;
+        }
+        .fresh-link:hover { color: #1e4d35; }
+
+        .stale-btn {
+          transition: background-color 0.15s ease;
+        }
+        .stale-btn:hover { background-color: #fef0a0 !important; }
+
         @media (max-width: 640px) {
           .insights-header { flex-wrap: wrap; gap: 12px; }
           .insights-header-right { flex-shrink: 0; }
           .summary-bar { grid-template-columns: 1fr 1fr !important; }
           .summary-bar-top-trigger { grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 16px; margin-top: 4px; }
+          .stale-bar { flex-direction: column !important; gap: 8px !important; align-items: flex-start !important; }
         }
       `}</style>
 
@@ -315,12 +382,9 @@ export default function InsightsPage() {
           <div style={{ width: '100%', height: '1px', backgroundColor: '#d6cfc4', marginTop: '24px' }} />
         </div>
 
-        {/* ── Weekly Summary Card ── */}
-        {!loading && data && !data.insufficient && data.weeklySummary && (
-          <div
-            className="w-full max-w-md mb-8 fade-in-up"
-            style={{ animationDelay: '0.05s' }}
-          >
+        {/* ── Weekly Summary Card (shown when results are available) ── */}
+        {showResults && data?.weeklySummary && (
+          <div className="w-full max-w-md mb-8 fade-in-up" style={{ animationDelay: '0.05s' }}>
             <div
               style={{
                 backgroundColor: '#ffffff',
@@ -355,21 +419,77 @@ export default function InsightsPage() {
               >
                 Your Week in Review
               </h3>
-              <p
-                style={{
-                  color: '#4a5568',
-                  fontSize: '0.9rem',
-                  lineHeight: 1.7,
-                  margin: 0,
-                }}
-              >
+              <p style={{ color: '#4a5568', fontSize: '0.9rem', lineHeight: 1.7, margin: 0 }}>
                 🌿 {data.weeklySummary}
               </p>
             </div>
           </div>
         )}
 
-        {/* ── Date Range Filter ── */}
+        {/* ── Status bar: Case B — fresh cache ── */}
+        {showStatusBar && (
+          <div className="w-full max-w-md mb-3 fade-in-up">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '8px 4px',
+              }}
+            >
+              <span style={{ color: '#5a9e7a', fontSize: '0.8125rem', fontWeight: 400 }}>
+                ✓ Analysed {hoursAgoText(generatedAt!)}
+              </span>
+              <button className="fresh-link" onClick={runAnalysis}>
+                Run fresh analysis →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Notice bar: Case C — stale cache ── */}
+        {showStaleBar && (
+          <div className="w-full max-w-md mb-3 fade-in-up">
+            <div
+              className="stale-bar"
+              style={{
+                backgroundColor: '#fffbec',
+                border: '1px solid #f0d060',
+                borderRadius: '12px',
+                padding: '10px 14px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <span style={{ color: '#b07d00', fontSize: '0.8125rem', lineHeight: 1.4 }}>
+                This analysis is over 6 hours old. Your data may have changed.
+              </span>
+              <button
+                className="stale-btn"
+                onClick={runAnalysis}
+                style={{
+                  backgroundColor: '#fef3c7',
+                  color: '#b07d00',
+                  border: '1px solid #f0d060',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                Run fresh analysis
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Date Range Filter (always visible) ── */}
         <div className="w-full max-w-md mb-8 fade-in-up" style={{ animationDelay: '0.05s' }}>
           <div style={{ display: 'flex', gap: '8px' }}>
             {DATE_RANGE_OPTIONS.map(({ value, label }) => {
@@ -400,12 +520,9 @@ export default function InsightsPage() {
           </div>
         </div>
 
-        {/* ── Summary Bar ── */}
-        {!loading && data && !data.insufficient && data.summary && (
-          <div
-            className="w-full max-w-md mb-8 fade-in-up"
-            style={{ animationDelay: '0.1s' }}
-          >
+        {/* ── Summary Bar (shown when results are available) ── */}
+        {showResults && data?.summary && (
+          <div className="w-full max-w-md mb-8 fade-in-up" style={{ animationDelay: '0.1s' }}>
             <div
               className="summary-bar"
               style={{
@@ -418,9 +535,9 @@ export default function InsightsPage() {
               }}
             >
               {[
-                { value: data.summary.totalLogs, label: 'logs analysed', mobile: '' },
-                { value: data.summary.daysTracked, label: 'days tracked', mobile: '' },
-                { value: data.summary.topTrigger, label: 'top trigger', mobile: 'summary-bar-top-trigger' },
+                { value: data.summary.totalLogs,    label: 'logs analysed', mobile: '' },
+                { value: data.summary.daysTracked,  label: 'days tracked',  mobile: '' },
+                { value: data.summary.topTrigger,   label: 'top trigger',   mobile: 'summary-bar-top-trigger' },
               ].map(({ value, label, mobile }) => (
                 <div key={label} className={mobile} style={{ textAlign: 'center' }}>
                   <div
@@ -452,15 +569,11 @@ export default function InsightsPage() {
           </div>
         )}
 
-        {/* ── Loading ── */}
-        {loading && (
+        {/* ── Loading spinner (cache check OR AI analysis) ── */}
+        {showSpinner && (
           <div
             className="w-full max-w-md"
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              marginTop: '32px',
-            }}
+            style={{ display: 'flex', justifyContent: 'center', marginTop: '32px' }}
           >
             <div
               style={{
@@ -477,24 +590,88 @@ export default function InsightsPage() {
               }}
             >
               <div className="loading-spinner" />
-              <p
+              {loading && (
+                <p
+                  style={{
+                    fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+                    color: '#1e4d35',
+                    fontSize: '0.9375rem',
+                    fontWeight: 500,
+                    letterSpacing: '0.01em',
+                    margin: 0,
+                  }}
+                >
+                  Analysing your data...
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Case A: No cache — Analyse button ── */}
+        {showReadyCard && (
+          <div
+            className="w-full max-w-md fade-in-up"
+            style={{ display: 'flex', justifyContent: 'center', marginTop: '32px' }}
+          >
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '24px',
+                border: '1px solid #e4ddd2',
+                boxShadow: '0 4px 24px rgba(30,77,53,0.07)',
+                padding: '48px 40px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px',
+                width: '100%',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '2rem', lineHeight: 1 }}>🔍</div>
+              <h3
                 style={{
-                  fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+                  fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
                   color: '#1e4d35',
-                  fontSize: '0.9375rem',
-                  fontWeight: 500,
-                  letterSpacing: '0.01em',
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
                   margin: 0,
                 }}
               >
-                Analysing your data...
+                Ready to analyse your data
+              </h3>
+              <p style={{ color: '#9aada5', fontSize: '0.875rem', lineHeight: 1.68, margin: 0, maxWidth: '280px' }}>
+                Tap the button below to discover your gut triggers. Takes 10–15 seconds.
+              </p>
+              <button
+                className="analyse-btn"
+                onClick={runAnalysis}
+                style={{
+                  backgroundColor: '#1e4d35',
+                  color: '#f5f0e8',
+                  borderRadius: '100px',
+                  padding: '14px 36px',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.02em',
+                  marginTop: '8px',
+                }}
+              >
+                Analyse my data
+              </button>
+              <p style={{ color: '#c8bfb0', fontSize: '0.8rem', margin: 0 }}>
+                Your results will be saved for 6 hours
               </p>
             </div>
           </div>
         )}
 
         {/* ── Insufficient Data / Empty State ── */}
-        {!loading && data?.insufficient && (
+        {showInsufficient && (
           <div
             className="w-full max-w-md fade-in-up"
             style={{
@@ -506,15 +683,7 @@ export default function InsightsPage() {
               boxShadow: '0 6px 30px rgba(30,77,53,0.06)',
             }}
           >
-            <div
-              style={{
-                fontSize: '2.5rem',
-                lineHeight: 1,
-                margin: '0 auto 20px',
-              }}
-            >
-              🌿
-            </div>
+            <div style={{ fontSize: '2.5rem', lineHeight: 1, margin: '0 auto 20px' }}>🌿</div>
             <h3
               style={{
                 fontFamily: "var(--font-playfair, 'Playfair Display', serif)",
@@ -569,7 +738,7 @@ export default function InsightsPage() {
         )}
 
         {/* ── Insight Cards ── */}
-        {!loading && !error && data && !data.insufficient && totalPatterns > 0 && (
+        {showResults && totalPatterns > 0 && (
           <div className="w-full max-w-md">
             <p
               style={{
